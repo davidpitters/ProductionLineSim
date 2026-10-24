@@ -1,0 +1,57 @@
+Before beginning any development, the very first thing that I did was structure my approach to the project. I devised a schedule to adhere to, based on how many days I had until my on site interview. I had from Tuesday until Tuesday, so I dedicated 3 days to development, with a code freeze after Friday. Saturday and Sunday were dedicated to testing core functionality and edge cases, and bug fixes. Monday was dedicated to reviewing and brainstorming future capabilities outside of the scope of this project.
+
+After coming up with my schedule, I re-read over the supplied take home project documentation. From this I gathered key functional requirements and drafted the architecture that I wanted. I composed it of 5 parts:
+Events - Simulated events that mimic the data that is being trasmitted from the machines on the production line.
+Ingestion API - Validates requests, identifies duplicates, and persists accepted messages
+Ingestion queue - This sits between the API and the message processor. API first saves messages to the queue. Messages have a status of Pending, Processing, Processed, or Failed. A BackgroundService processes queued messages and updates their statuses.
+ -If the application restarts before a message is processed, the pending message remains in SQLite.
+ -If processing fails, the message can be retried.
+ -If processing is attempted twice, the database uniqueness constraint prevents a duplicate event.
+ -If a message repeatedly fails, it can be inspected rather than retried indefinitely.
+Processed Downtime Events - Validated records, queryable history
+Dashboard - displays Production status, Downtime reports, and Ingestion health
+With this, I prompted GPT-6 in ChatGPT to draft a design specification document that would give a high level blueprint on how the system will be built to fulfill its functional requirements. 
+
+Next, it was time to begin development. I began by instructing GPT-6 Luna in VSCode to scaffold the application according to my desired design. The design I went with was an ASP.NET Core Web API, with a React Typescript frontend. I used Vite for local web server development. I also opted for a SQLite database for persistent storage of queued messages in case of application shutdown. 
+
+Once I had the skeleton of the project created, I made some adjustments to fit the folder structure that I wanted. I added a folder for Classes and a folder for Services.
+
+The first things I wanted to create were my classes. I believe that by having fully realized classes with their respective properties is a great starting point because the entire application revolves around these models.
+I put the agent into Plan mode and supplied it with my design specification and asked it what thought my classes should be, based on the functional requirements. It returned a list of classes and I reviewed them to ensure that they were in line with what was needed. I removed unnecessary properties and simplified them.
+
+Next, I set up my API. According to my 5 subsystem design, I knew that I would need an API for the Production Line, and another for the Ingestion.
+- The ProductionLine API serves the purpose of performing
+    - GET operations
+        - To read production lines and their statuses
+        - To read the downtime for a specific production line
+- The Ingestion API serves the purpose of performing 
+    - GET operations
+        - To read the health of the ingestion queue (counts of each message status)
+        - To read an individual message by id 
+        - To read a list of messages by status
+
+
+Next, I set up my services. The services are comprised of an background service that queues ingestion messages. It polls the SQLite store every second and process pending messages. The 2 actions of adding the event to the DowntimeEvents table and updating the ingestion message status to Processed is atomic via a transaction. This ensures that both commit together or neither do, in the case of a system crash. Upon system restart, any ingestion messages that are in the Processing status are reset to Pending so they can be retried. 
+
+
+Next, I set up my front end. To expedite the process of class creation I provided GPT-6 Luna with my Models and instructed it to give me Typescript equivalents. I wanted 4 screens that are navigated by a sidebar:
+- Overview
+- Events
+- Performance
+- Targets
+I incrementally pieced the front end together, going back and forth between writing my react components and styling them with css.
+I first created the app container in the App.tsx file, which holds the sidebar and the main content. In the sidebar are 4 buttons that act as tab toggles to change the main content screen. The main content has a condition check for the selected tab and shows the correct page based on that. 
+When writing the css for the layout, I set the background color for each so that I could see their position on the page, their height/width as well as their respective content positioning. 
+For the screens, I took inspiration from my research on ZPI's Monitor and Report software that I found on the company website. I used it as a baseline but put my own spin on it such as clicking on a Production Line highlighting the corresponding line in the Overview, being able to scroll through and search for a Production Line, 
+
+From my research on ZPI I found some additional key functional requirements:
+- OEE is a very important benchmark that needs to be reflected in the application.
+- The software should be able to run on a local area network without needing propriety hardware or PLC changes
+
+How I would expand on this project in the future would be to do the following:
+- Transform generic classes into entities and DTOs with the proper naming convention *Entity.cs and *DTO.cs
+
+
+The greatest challenge for me was to be able to properly understand what classes to create. Taking the functional requirements and translating them into the classes and data transfer objects that fulfill the requirements while not being overengineered.
+
+I used AI to boilerplate the projects and help me come up with properties that I would need for my classes, but when it came to development I chose to build the application from the ground up. The reason for this is that I have used AI to generate the "v1" of some apps in my own personal projects before, and it always comes with major drawbacks such as file bloat and unreadable code. I find that creating my classes, services, api controllers, and front end components myself keep the file count minimal and I am able to steer the code towards not just how I want it to work, but how I would like it to look as well. This ensures that in the future, anyone looking at the code will be able to quickly understand what its purpose is and where to make any desired changes. I think of it like cooking a meal versus ordering the same meal from Uber Eats. It can be the same exact thing in front of you, but when you do it yourself you know the ins and outs of it.

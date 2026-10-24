@@ -1,0 +1,6 @@
+@ProductionLineSim_HostAddress = http://localhost:5122
+
+GET {{ProductionLineSim_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
