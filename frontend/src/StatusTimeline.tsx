@@ -101,7 +101,7 @@ export function StatusTimeline(
   return (
     <>
     <section className="status-timeline">
-      <h2>Line status — last 8 hours</h2>
+      <h2>Line Status — last 8 hours</h2>
 
       <div className="timeline-axis">
         <div className="timeline-line-name" />
@@ -121,37 +121,37 @@ export function StatusTimeline(
 
             return (
                 <div className="timeline-row" key={line.Id}>
-                <span className="timeline-line-name">{line.Name}</span>
+                    <span className="timeline-line-name">{line.Name}</span>
 
-                <div
-                className="timeline-track"
-                aria-label={`${line.Name} status over the last 8 hours`}
-                >
-                {segments.map((segment, index) => {
-                    const left =
-                    ((segment.start - rangeStart) / WINDOW_MS) * 100
-                    const width =
-                    ((segment.end - segment.start) / WINDOW_MS) * 100
-
-                    const alignment =
-                        left + width / 2 < 50
-                            ? 'popover-align-left'
-                            : 'popover-align-right'
-                    return (
                     <div
-                        key={`${line.Id}-${index}`}
-                        className={`timeline-segment ${statusClass(segment.status)} ${alignment}`}
-                        style={{ left: `${left}%`, width: `${width}%` }}
-                        title={`${segment.status}: ${formatHour(segment.start)}–${formatHour(segment.end)}`}
-                        >
-                        <span className="timeline-popover" role="tooltip">
-                            <strong>{segment.status}</strong>
-                            <span>Start: {formatHour(segment.start)}</span>
-                            <span>End: {formatHour(segment.end)}</span>
-                        </span>
-                    </div>
-                    )
-                })}
+                    className="timeline-track"
+                    aria-label={`${line.Name} status over the last 8 hours`}
+                    >
+                    {segments.map((segment, index) => {
+                        const left =
+                        ((segment.start - rangeStart) / WINDOW_MS) * 100
+                        const width =
+                        ((segment.end - segment.start) / WINDOW_MS) * 100
+
+                        const alignment =
+                            left + width / 2 < 50
+                                ? 'popover-align-left'
+                                : 'popover-align-right'
+                        return (
+                        <div
+                            key={`${line.Id}-${index}`}
+                            className={`timeline-segment ${statusClass(segment.status)} ${alignment}`}
+                            style={{ left: `${left}%`, width: `${width}%` }}
+                            title={`${segment.status}: ${formatHour(segment.start)}–${formatHour(segment.end)}`}
+                            >
+                            <span className="timeline-popover" role="tooltip">
+                                <strong>{segment.status}</strong>
+                                <span>Start: {formatHour(segment.start)}</span>
+                                <span>End: {formatHour(segment.end)}</span>
+                            </span>
+                        </div>
+                        )
+                    })}
                     </div>
                 </div>
             )
