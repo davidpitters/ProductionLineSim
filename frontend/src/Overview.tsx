@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import * as Interfaces from './interfaces/interfaces'
+import { StatusTimeline } from './StatusTimeline'
 
 const mockProductionLines: Interfaces.ProductionLine[] = [
   {
@@ -39,6 +40,61 @@ const mockProductionLines: Interfaces.ProductionLine[] = [
     StatusUpdatedAtUtc: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
   }
 ]
+
+const mockNow = Date.now()
+
+function makeMockEvent(
+  id: string,
+  reason: string,
+  startedMinutesAgo: number,
+  durationMinutes: number | null,
+): Interfaces.DowntimeEvent {
+  const startedAt = mockNow - startedMinutesAgo * 60_000
+  const endedAt =
+    durationMinutes === null
+      ? null
+      : startedAt + durationMinutes * 60_000
+
+  return {
+    Id: id,
+    SourceEventId: `mock-${id}`,
+    Reason: reason,
+    StartedAtUtc: new Date(startedAt).toISOString(),
+    EndedAtUtc: endedAt === null ? null : new Date(endedAt).toISOString(),
+    DurationSeconds:
+      durationMinutes === null ? 0 : durationMinutes * 60,
+    IsOngoing: endedAt === null,
+  }
+}
+
+const eventsByLine: Record<string, Interfaces.DowntimeEvent[]> = {
+  'line-1': [
+    makeMockEvent('event-101', 'Down', 430, 20),
+    makeMockEvent('event-102', 'Blocked', 260, 35),
+    makeMockEvent('event-103', 'Starved', 70, 15),
+  ],
+  'line-2': [
+    makeMockEvent('event-201', 'Starved', 390, 25),
+    makeMockEvent('event-202', 'Down', 180, 40),
+    makeMockEvent('event-203', 'Down', 20, null), // ongoing
+  ],
+  'line-3': [
+    makeMockEvent('event-301', 'Blocked', 350, 30),
+    makeMockEvent('event-302', 'Starved', 120, 18),
+  ],
+  'line-4': [
+    makeMockEvent('event-401', 'Down', 300, 12),
+    makeMockEvent('event-402', 'Blocked', 100, 22),
+  ],
+  'line-5': [
+    makeMockEvent('event-501', 'Down', 440, 55),
+    makeMockEvent('event-502', 'Starved', 210, 30),
+  ],
+  'line-6': [
+    makeMockEvent('event-601', 'Starved', 280, 16),
+    makeMockEvent('event-602', 'Blocked', 60, 10),
+  ],
+}
 
 function formatDuration(totalSeconds: number): string {
   const hours = Math.floor(totalSeconds / 3600)
@@ -108,13 +164,7 @@ export function Overview(){
                 </div>
             </div>
             <div className="right-content">
-                {selectedLine && (
-                    <div>
-                        <h2>{selectedLine.Name}</h2>
-                        <p>ID: {selectedLine.Id}</p>
-                        <p>Status: {selectedLine.Status}</p>
-                    </div>
-                )}
+                <StatusTimeline lines={productionLines} selectedLine={selectedLine}  eventsByLine={eventsByLine}/>
             </div>
         </div>
     )

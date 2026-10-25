@@ -83,6 +83,13 @@
 
 .scrollable{
     overflow-y: scroll;
+    &.hide-scrollbar{
+        scrollbar-width: none; /* Firefox */
+        -ms-overflow-style: none; /* Legacy Edge */
+    }
+    &.hide-scrollbar::-webkit-scrollbar {
+        display: none; /* Chrome, Safari, Opera */
+    }
 }
 
 .production-line-list{
@@ -107,4 +114,136 @@
     border: 1px solid #ccc;
     border-radius: 4px;
     background: #f9f9f9;
+}
+
+/* StatusTimeline styles */
+.status-timeline {
+  width: calc(100% - 15px);
+}
+
+.timeline-rows-container{
+    height: 500px;
+}
+
+.timeline-axis,
+.timeline-row {
+  display: grid;
+  grid-template-columns: 160px minmax(560px, 1fr);
+  align-items: center;
+}
+
+.timeline-axis {
+  margin-bottom: 0.5rem;
+}
+
+.timeline-line-name {
+  overflow: hidden;
+  padding-right: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.timeline-axis-track {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid #aaa;
+  padding-bottom: 0.25rem;
+  font-size: 0.8rem;
+}
+
+.timeline-row {
+  position: relative;
+  min-height: 80px;
+  border-bottom: 1px solid #ddd;
+}
+
+.timeline-row:hover,
+.timeline-row:focus-within {
+  z-index: 10;
+}
+
+.timeline-track {
+  position: relative;
+  z-index: 1;
+  height: 24px;
+  overflow: visible;
+  border: 1px solid #ccc;
+  background-image: repeating-linear-gradient(
+    to right,
+    transparent 0,
+    transparent calc(12.5% - 1px),
+    #ccc calc(12.5% - 1px),
+    #ccc 12.5%
+  );
+}
+
+.timeline-segment {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+}
+
+.timeline-segment:hover,
+.timeline-segment:focus {
+  z-index: 5;
+}
+
+.timeline-popover {
+  position: absolute;
+  left: 0;
+  top: calc(100% + 8px);
+  bottom: auto;
+  z-index: 20;
+  display: grid;
+  gap: 0.25rem;
+  width: max-content;
+  max-width: 240px;
+  padding: 0.6rem 0.75rem;
+  border-radius: 4px;
+  background: #222;
+  color: #fff;
+  font-size: 0.8rem;
+  text-align: left;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 25%);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+    transform: translateY(4px);
+  transition:
+    opacity 120ms ease,
+    transform 120ms ease,
+    visibility 120ms;
+}
+
+.timeline-segment:hover .timeline-popover,
+.timeline-segment:focus .timeline-popover {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.status-running {
+  background: #159447;
+}
+
+.status-starved {
+  background: #f2cf28;
+}
+
+.status-blocked {
+  background: #2876d2;
+}
+
+.status-down {
+  background: #dc3545;
+}
+
+.status-unknown {
+  background: #888;
+}
+
+.popover-align-right .timeline-popover {
+  right: 0;
+  left: auto;
 }

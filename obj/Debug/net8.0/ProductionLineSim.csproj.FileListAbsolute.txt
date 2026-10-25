@@ -39,3 +39,4 @@ C:\Projects\ZPI\ProductionLineSim\obj\Debug\net8.0\ProductionLineSim.genruntimec
 C:\Projects\ZPI\ProductionLineSim\obj\Debug\net8.0\ref\ProductionLineSim.dll
 C:\Projects\ZPI\ProductionLineSim\bin\Debug\net8.0\Microsoft.Data.Sqlite.dll
 C:\Projects\ZPI\ProductionLineSim\bin\Debug\net8.0\SQLitePCLRaw.core.dll
+C:\Projects\ZPI\ProductionLineSim\obj\Debug\net8.0\ProductionLineSim.sourcelink.json

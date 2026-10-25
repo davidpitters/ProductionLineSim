@@ -44,6 +44,10 @@ I first created the app container in the App.tsx file, which holds the sidebar a
 When writing the css for the layout, I set the background color for each so that I could see their position on the page, their height/width as well as their respective content positioning. 
 For the screens, I took inspiration from my research on ZPI's Monitor and Report software that I found on the company website. I used it as a baseline but put my own spin on it such as clicking on a Production Line highlighting the corresponding line in the Overview, being able to scroll through and search for a Production Line, 
 
+Overview
+- Each production line has a record on the timeline which shows a compilation of segments over the range of time. A segment is composed of a start, and end, and the status. I assigned each status a unique color to be able to differentiate them. 
+- 
+
 From my research on ZPI I found some additional key functional requirements:
 - OEE is a very important benchmark that needs to be reflected in the application.
 - The software should be able to run on a local area network without needing propriety hardware or PLC changes
