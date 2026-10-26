@@ -358,7 +358,7 @@ namespace ProductionLineSim.Services
             var events = new List<DowntimeEvent>();
             await using var connection = OpenConnection();
             await using var command = connection.CreateCommand();
-            command.CommandText = "SELECT Id,SourceEventId,Reason,StartedAtUtc,EndedAtUtc FROM DowntimeEvents WHERE LineId=$line AND StartedAtUtc < $to AND (EndedAtUtc IS NULL OR EndedAtUtc > $from) ORDER BY StartedAtUtc DESC;";
+            command.CommandText = "SELECT Id,SourceEventId,Reason,StartedAtUtc,EndedAtUtc FROM DowntimeEvents WHERE LineId=$line AND StartedAtUtc <= $to AND (EndedAtUtc IS NULL OR EndedAtUtc > $from) ORDER BY StartedAtUtc DESC;";
             command.Parameters.AddWithValue("$line", lineId);
             command.Parameters.AddWithValue("$from", Format(from));
             command.Parameters.AddWithValue("$to", Format(to));

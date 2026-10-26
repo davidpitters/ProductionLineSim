@@ -83,7 +83,7 @@ export function LineDetail({ line, onBack, getStatusClass }: LineDetailProps) {
 	const [eventsLoading, setEventsLoading] = useState(true)
 	const [eventsError, setEventsError] = useState<string | null>(null)
 	const [retryToken, setRetryToken] = useState(0)
-	const [now] = useState(Date.now())
+	const [now, setNow] = useState(Date.now())
 
 	const fromMs = parseLocalDateTime(from)
 	const toMs = parseLocalDateTime(to)
@@ -131,9 +131,9 @@ export function LineDetail({ line, onBack, getStatusClass }: LineDetailProps) {
 					const startedAt = Date.parse(event.StartedAtUtc)
 					return (
 						startedAt >= fromMs &&
-						startedAt < toMs &&
+						startedAt <= toMs &&
 						(statusFilter === 'All' || getProductionLineStatusDisplayName(event.Status).toLowerCase() === statusFilter.toLowerCase()) &&
-						(durationSeconds > 0 || startedAt === fromMs)
+						(durationSeconds > 0 || startedAt === fromMs || startedAt === toMs)
 					)
 				})
 				.sort((a, b) => Date.parse(b.event.StartedAtUtc) - Date.parse(a.event.StartedAtUtc))
@@ -150,6 +150,17 @@ export function LineDetail({ line, onBack, getStatusClass }: LineDetailProps) {
 			</div>
 			<div className="line-detail-header">
 				<h1>{line.Name}</h1>
+				<button
+					type="button"
+					className="line-detail-refresh"
+					disabled={eventsLoading}
+					onClick={() => {
+						setNow(Date.now())
+						setRetryToken((value) => value + 1)
+					}}
+				>
+					{eventsLoading ? 'Refreshing…' : '↻ Refresh'}
+				</button>
 			</div>
 
 			<div className="line-detail-date-range">
@@ -206,6 +217,13 @@ export function LineDetail({ line, onBack, getStatusClass }: LineDetailProps) {
 							value={getTimePart(to)}
 							onChange={(event) => setTo((current) => updateDateTimePart(current, 'time', event.target.value))}
 						/>
+						<button
+							type="button"
+							className="line-detail-now-button"
+							onClick={() => setTo(toLocalDateTimeInput(new Date()))}
+						>
+							Now
+						</button>
 					</div>
 				</div>
 			</div>

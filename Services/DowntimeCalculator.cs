@@ -12,7 +12,7 @@ namespace ProductionLineSim.Services
             if (from >= to) throw new ArgumentException("The reporting range must have from earlier than to.");
 
             var events = sourceEvents
-                .Where(item => item.StartedAtUtc < to && (item.EndedAtUtc is null || item.EndedAtUtc > from))
+                .Where(item => item.StartedAtUtc <= to && (item.EndedAtUtc is null || item.EndedAtUtc > from))
                 .Select(item =>
                 {
                     var effectiveEnd = item.EndedAtUtc ?? (to < nowUtc ? to : nowUtc);

@@ -10,7 +10,6 @@ function App() {
   return (
     <div className="app-container">
       <nav className="sidebar" aria-label="Main navigation">
-        <div className="sidebar-brand"><span className="sidebar-brand-mark">PL</span><span>Production<br />Line Monitor</span></div>
         <div className="sidebar-nav">
           <button className={tabIndex === 0 ? 'is-selected' : ''} aria-current={tabIndex === 0 ? 'page' : undefined} onClick={() => setTabIndex(0)}><span aria-hidden="true">▥</span>Lines</button>
           <button className={tabIndex === 1 ? 'is-selected' : ''} aria-current={tabIndex === 1 ? 'page' : undefined} onClick={() => setTabIndex(1)}><span aria-hidden="true">⇧</span>Ingestion</button>
