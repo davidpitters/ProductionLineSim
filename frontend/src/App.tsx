@@ -1,51 +1,31 @@
 import { useState } from 'react'
 import { Overview } from './Overview'
-import { Events } from './Events'
+import { Ingestion } from './Ingestion'
 import { Performance } from './Performance'
 import { Targets } from './Targets'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
 import './App.css'
 
-// Helper functions
-const localDateTime = (date: Date) => {
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
-  return local.toISOString().slice(0, 16)
-}
-const toUtc = (value: string) => new Date(value).toISOString()
-const prettyTime = (value: string | null) => value ? new Date(value).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Ongoing'
-const duration = (seconds: number) => {
-  const hours = Math.floor(seconds / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-  const remainder = seconds % 60
-  if (hours) return `${hours}h ${minutes}m`
-  if (minutes) return `${minutes}m ${remainder}s`
-  return `${remainder}s`
-}
-
-
 function App() {
-  // Initialize state
-  const [count, setCount] = useState(0)
-
-
   const [tabIndex, setTabIndex] = useState(0)
   return (
-    <>
-      <div className="app-container">
-        {/* Render tabs based on tabIndex */}
-        <div className="sidebar">
-          <button onClick={() => setTabIndex(0)}>Lines</button>
-          <button onClick={() => setTabIndex(1)}>Performance</button>
-          <button onClick={() => setTabIndex(2)}>Targets</button>
+    <div className="app-container">
+      <nav className="sidebar" aria-label="Main navigation">
+        <div className="sidebar-brand"><span className="sidebar-brand-mark">PL</span><span>Production<br />Line Monitor</span></div>
+        <div className="sidebar-nav">
+          <button className={tabIndex === 0 ? 'is-selected' : ''} aria-current={tabIndex === 0 ? 'page' : undefined} onClick={() => setTabIndex(0)}><span aria-hidden="true">▥</span>Lines</button>
+          <button className={tabIndex === 1 ? 'is-selected' : ''} aria-current={tabIndex === 1 ? 'page' : undefined} onClick={() => setTabIndex(1)}><span aria-hidden="true">⇧</span>Ingestion</button>
+          <button className={tabIndex === 2 ? 'is-selected' : ''} aria-current={tabIndex === 2 ? 'page' : undefined} onClick={() => setTabIndex(2)}><span aria-hidden="true">◷</span>Performance</button>
+          <button className={tabIndex === 3 ? 'is-selected' : ''} aria-current={tabIndex === 3 ? 'page' : undefined} onClick={() => setTabIndex(3)}><span aria-hidden="true">◎</span>Targets</button>
         </div>
-        <div className="main-content">
-          {tabIndex === 0 && <Overview />}
-          {tabIndex === 1 && <Performance />}
-          {tabIndex === 2 && <Targets />}
-        </div>
-      </div>
-    </>
+        <div className="sidebar-footer"><span className="sidebar-online-dot" />API connected</div>
+      </nav>
+      <main className="main-content">
+        {tabIndex === 0 && <Overview />}
+        {tabIndex === 1 && <Ingestion />}
+        {tabIndex === 2 && <Performance />}
+        {tabIndex === 3 && <Targets />}
+      </main>
+    </div>
   )
 }
 

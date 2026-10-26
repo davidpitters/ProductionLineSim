@@ -539,10 +539,11 @@ namespace ProductionLineSim.Services
                 return true;
             }
 
-            var payload = JsonSerializer.Deserialize<MachineEventRequest>(message.PayloadJson, JsonOptions)
+            var payload = JsonSerializer.Deserialize<MachineEventRequest>(message.PayloadJson!, JsonOptions)
                 ?? throw new InvalidOperationException("The queued event payload could not be deserialized.");
             await using var finalConnection = OpenConnection();
             await using var finalTransaction = finalConnection.BeginTransaction();
+            var processedAt = DateTimeOffset.UtcNow;
             await using (var insert = finalConnection.CreateCommand())
             {
                 insert.Transaction = finalTransaction;
@@ -553,14 +554,24 @@ namespace ProductionLineSim.Services
                 insert.Parameters.AddWithValue("$reason", payload.Reason);
                 insert.Parameters.AddWithValue("$start", Format(payload.StartedAtUtc));
                 insert.Parameters.AddWithValue("$end", payload.EndedAtUtc is { } end ? Format(end) : DBNull.Value);
-                insert.Parameters.AddWithValue("$received", Format(DateTimeOffset.UtcNow));
+                insert.Parameters.AddWithValue("$received", Format(processedAt));
                 await insert.ExecuteNonQueryAsync(cancellationToken);
+            }
+            await using (var updateLine = finalConnection.CreateCommand())
+            {
+                updateLine.Transaction = finalTransaction;
+                updateLine.CommandText = "UPDATE ProductionLines SET Status=$status,StatusUpdatedAtUtc=$updated WHERE Id=$line AND StatusUpdatedAtUtc <= $eventStart;";
+                updateLine.Parameters.AddWithValue("$status", DowntimeReasonCatalog.GetImpactStatus(payload.Reason).GetDisplayName());
+                updateLine.Parameters.AddWithValue("$updated", Format(payload.StartedAtUtc));
+                updateLine.Parameters.AddWithValue("$line", payload.LineId);
+                updateLine.Parameters.AddWithValue("$eventStart", Format(payload.StartedAtUtc));
+                await updateLine.ExecuteNonQueryAsync(cancellationToken);
             }
             await using (var update = finalConnection.CreateCommand())
             {
                 update.Transaction = finalTransaction;
                 update.CommandText = "UPDATE IngestionMessages SET Status='Processed',ProcessedAtUtc=$now,NextAttemptAtUtc=NULL,LastError=NULL WHERE Id=$id AND Status='Processing';";
-                update.Parameters.AddWithValue("$now", Format(DateTimeOffset.UtcNow));
+                update.Parameters.AddWithValue("$now", Format(processedAt));
                 update.Parameters.AddWithValue("$id", message.MessageId.ToString());
                 await update.ExecuteNonQueryAsync(cancellationToken);
             }

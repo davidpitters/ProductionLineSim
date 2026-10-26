@@ -62,25 +62,32 @@ export interface ApiError {
 }
 
 export interface IngestionMessage {
-  MessageId: string;
-  SourceEventId: string;
-  Status: string;
-  AttemptCount: number;
-  CreatedAtUtc: string;
-  LastAttemptedAtUtc: string | null;
-  LastError: string | null;
-  ProcessedAtUtc: string | null;
-  PayloadJson: string | null;
-  PayloadHash: string | null;
-  FailureMode: string | null;
+  messageId: string;
+  sourceEventId: string;
+  status: IngestionStatus;
+  attemptCount: number;
+  createdAtUtc: string;
+  lastAttemptedAtUtc: string | null;
+  lastError: string | null;
+  processedAtUtc: string | null;
+  payloadJson: string | null;
+  payloadHash: string | null;
+  failureMode: string | null;
 }
 
+export type IngestionStatus = 'Pending' | 'Processing' | 'Processed' | 'Failed';
+
 export interface IngestionHealth {
-  Pending: number;
-  Processing: number;
-  Processed: number;
-  Failed: number;
-  RecentMessages: ReadonlyArray<IngestionMessage>;
+  pending: number;
+  processing: number;
+  processed: number;
+  failed: number;
+  recentMessages: ReadonlyArray<IngestionMessage>;
+}
+
+export interface IngestionReason {
+  reason: string;
+  status: ProductionLineStatus;
 }
 
 export interface DowntimeReport {
@@ -120,10 +127,10 @@ export interface MachineEventRequest {
 }
 
 export interface MachineEventResponse {
-  MessageId: string;
-  SourceEventId: string;
-  Status: MessageStatus;
-  IsDuplicate: boolean;
+  messageId: string;
+  sourceEventId: string;
+  status: number | string;
+  isDuplicate: boolean;
 }
 
 export interface ReasonBreakdown {

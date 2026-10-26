@@ -11,22 +11,34 @@ namespace ProductionLineSim.Controllers
         private static readonly string[] ValidReasons = DowntimeReasonCatalog.AcceptedReasons.ToArray();
 
         [HttpGet]
-        [Route("api/ingestion/health")]
+        [Route("health")]
         public async Task<ActionResult<IngestionHealth>> GetHealthAsync(CancellationToken cancellationToken)
         {
             return Ok(await store.GetHealthAsync(cancellationToken));
         }
 
         [HttpGet]
-        [Route("api/ingestion/messages/{messageId:guid}")]
-        /// <summary>Returns the status and details of one ingestion message.</summary>
-        public async Task<ActionResult<IngestionMessage>> GetMessageAsync(Guid messageId, CancellationToken cancellationToken)
+        [Route("reasons")]
+        public IActionResult GetReasons()
         {
-            return Ok(await store.GetMessageAsync(messageId, cancellationToken));
+            return Ok(DowntimeReasonCatalog.CausesWithStatuses.Select(item => new
+            {
+                reason = item.Reason,
+                status = (int)item.Status
+            }));
         }
 
         [HttpGet]
-        [Route("api/ingestion/messages/{status}")]
+        [Route("messages/{messageId:guid}")]
+        /// <summary>Returns the status and details of one ingestion message.</summary>
+        public async Task<ActionResult<IngestionMessage>> GetMessageAsync(Guid messageId, CancellationToken cancellationToken)
+        {
+            var message = await store.GetMessageAsync(messageId, cancellationToken);
+            return message is null ? NotFound() : Ok(message);
+        }
+
+        [HttpGet]
+        [Route("messages/status/{status}")]
         /// <summary>Returns ingestion messages in the requested supported queue state.</summary>
         public async Task<ActionResult<List<IngestionMessage>>> GetMessagesByStatusAsync(string status, CancellationToken cancellationToken)
         {
@@ -34,7 +46,7 @@ namespace ProductionLineSim.Controllers
         }
 
         [HttpPost]
-        [Route("api/ingestion/submit")]
+        [Route("submit")]
         /// <summary>Validates a machine event and durably queues it, returning duplicate or conflict outcomes when applicable.</summary>
         public async Task<IActionResult> SubmitEvent([FromBody] MachineEventRequest request, [FromQuery] string? failureMode, CancellationToken cancellationToken)
         {
@@ -47,10 +59,19 @@ namespace ProductionLineSim.Controllers
             {
                 return BadRequest(new ApiError("EndedAtUtc cannot be earlier than StartedAtUtc."));
             }
-            if (!ValidReasons.Contains(request.Reason))
+            if (!ValidReasons.Contains(request.Reason, StringComparer.OrdinalIgnoreCase))
             {
                 return BadRequest(new ApiError($"Reason must be one of the following: {string.Join(", ", ValidReasons)}"));
             }
+            if (!await store.LineExistsAsync(request.LineId.Trim(), cancellationToken))
+            {
+                return BadRequest(new ApiError($"Production line '{request.LineId}' was not found."));
+            }
+            if (failureMode is not null && !failureMode.Equals("transient", StringComparison.OrdinalIgnoreCase) && !failureMode.Equals("permanent", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new ApiError("failureMode must be 'transient' or 'permanent'."));
+            }
+            failureMode = failureMode?.ToLowerInvariant();
 
             // Enqueue the request and handle potential conflicts
             Tuple<MachineEventResponse?, bool> result = await store.EnqueueAsync(request, failureMode, cancellationToken);
@@ -69,8 +90,8 @@ namespace ProductionLineSim.Controllers
                 return Ok(response);
             }
             // If the request is new, return a 202 Accepted with the message details
-            logger.LogInformation("Durably queued event {SourceEventId} as message {MessageId}", response.SourceEventId, response.MessageId);
-            return AcceptedAtAction(nameof(GetMessageAsync), new { messageId = response.MessageId }, response);
+            logger.LogInformation("Durably queued event {SourceEventId} as message {MessageId}", response!.SourceEventId, response.MessageId);
+            return Accepted($"/api/ingestion/messages/{response.MessageId}", response);
         }
     }
 }

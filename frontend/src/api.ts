@@ -1,6 +1,11 @@
 import {
   ProductionLineStatus,
   type DowntimeEvent,
+  type IngestionHealth,
+  type IngestionMessage,
+  type IngestionReason,
+  type MachineEventRequest,
+  type MachineEventResponse,
   type ProductionLine,
 } from './interfaces/interfaces'
 
@@ -76,6 +81,22 @@ async function requestJson<T>(url: string, signal?: AbortSignal): Promise<T> {
   return response.json() as Promise<T>
 }
 
+async function sendJson<T>(url: string, body: unknown, signal?: AbortSignal): Promise<T> {
+  const response = await fetch(url, {
+    method: 'POST',
+    signal,
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => null) as
+      | { error?: string; title?: string; detail?: string }
+      | null
+    throw new Error(errorBody?.error ?? errorBody?.detail ?? errorBody?.title ?? `API request failed (${response.status})`)
+  }
+  return response.json() as Promise<T>
+}
+
 export async function fetchProductionLines(signal?: AbortSignal): Promise<ProductionLine[]> {
   const lines = await requestJson<ApiProductionLine[]>('/api/productionlines', signal)
   return lines.map(mapProductionLine)
@@ -93,4 +114,25 @@ export async function fetchDowntimeEvents(
     signal,
   )
   return report.events.map(mapDowntimeEvent)
+}
+
+export async function fetchIngestionReasons(signal?: AbortSignal): Promise<IngestionReason[]> {
+  return requestJson<IngestionReason[]>('/api/ingestion/reasons', signal)
+}
+
+export async function fetchIngestionHealth(signal?: AbortSignal): Promise<IngestionHealth> {
+  return requestJson<IngestionHealth>('/api/ingestion/health', signal)
+}
+
+export async function submitMachineEvent(
+  request: MachineEventRequest,
+  failureMode: 'transient' | 'permanent' | 'none',
+  signal?: AbortSignal,
+): Promise<MachineEventResponse> {
+  const query = failureMode === 'none' ? '' : `?failureMode=${failureMode}`
+  return sendJson<MachineEventResponse>(`/api/ingestion/submit${query}`, request, signal)
+}
+
+export async function fetchIngestionMessage(messageId: string, signal?: AbortSignal): Promise<IngestionMessage> {
+  return requestJson<IngestionMessage>(`/api/ingestion/messages/${encodeURIComponent(messageId)}`, signal)
 }

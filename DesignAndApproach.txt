@@ -47,7 +47,9 @@ I drew up a mock UI in paint for the Line detail screen, based on the informatio
 I continued to add in functionality to the front end without committing too much time to it. I went for a clean and easy to understand UI, with features that make sense such as a search bar and filters.
 To test my front end, I supplied it with mock data based on my classes. I used GPT-6 Luna to generate the mock data.
 
-Once I had the front end completed, I hooked in the API to the frontend.
+Once I had the front end completed, I hooked in the API to the frontend. Since I was running up on time I used GPT-6 Luna to rapidly setup the interfacing between my front end and API. I gave it this instruction to be able to demo the Ingestion queue pipeline:
+"I need to integrate the Ingestion API to the front end. I need a UI to simulate a new machine event request for a line spawning, it getting validated and accepted by the ingestion controller, and then processed by the queue processor, and then being able to see it on the dashboard. Add another screen ( After Lines and before Performance ) called Ingestion to display this. I should be able to trigger the event spawning by a button. Match the existing ui styles"
+
 
 Note: Because the app stores the line’s current status separately from its downtime events, and doesn’t synchronize them, it is possible to see a Line with a current status that differs from the most recent event in the downtime events.
 

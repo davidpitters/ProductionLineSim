@@ -33,6 +33,9 @@ public static class DowntimeReasonCatalog
 
     public static IReadOnlyCollection<string> Causes => CauseStatuses.Keys.ToArray();
 
+    public static IReadOnlyCollection<(string Reason, ProductionLineStatus Status)> CausesWithStatuses =>
+        CauseStatuses.Select(entry => (entry.Key, entry.Value)).ToArray();
+
     public static IReadOnlyCollection<string> AcceptedReasons =>
         CauseStatuses.Keys.Concat(LegacyStatuses.Keys).ToArray();
 
