@@ -79,10 +79,13 @@ function statusClass(status: string): string {
 }
 
 export function StatusTimeline(
-    { lines, eventsByLine }: { selectedLine: any, lines: any[], eventsByLine: any }
+    { lines, eventsByLine, highlightedLineId }: {
+      lines: Interfaces.ProductionLine[]
+      eventsByLine: Record<string, DowntimeEvent[]>
+      highlightedLineId?: string | null
+    }
 ) {
   const [now, setNow] = useState(Date.now())
-  const [statuses, setStatuses] = useState([]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 60_000)
@@ -120,7 +123,10 @@ export function StatusTimeline(
             )
 
             return (
-                <div className="timeline-row" key={line.Id}>
+                <div
+                  className={`timeline-row${highlightedLineId === line.Id ? ' timeline-row-highlighted' : ''}`}
+                  key={line.Id}
+                >
                     <span className="timeline-line-name">{line.Name}</span>
 
                     <div

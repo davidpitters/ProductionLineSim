@@ -240,6 +240,13 @@
   position: relative;
   min-height: 80px;
   border-bottom: 1px solid #ddd;
+  transition: background-color 120ms ease, box-shadow 120ms ease;
+}
+
+.timeline-row-highlighted {
+  z-index: 2;
+  background-color: #edf5ff;
+  box-shadow: inset 0 0 0 2px #2876d2;
 }
 
 .timeline-row:hover,

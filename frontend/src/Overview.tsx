@@ -154,6 +154,7 @@ export function Overview(){
     const [productionLines, setProductionLines] =
   useState<Interfaces.ProductionLine[]>(mockProductionLines)
     const [selectedLine, setSelectedLine] = useState<Interfaces.ProductionLine | null>(null)
+    const [highlightedLineId, setHighlightedLineId] = useState<string | null>(null)
     const [searchTerm, setSearchTerm] = useState('')
     const [now, setNow] = useState(Date.now())
 
@@ -214,7 +215,18 @@ export function Overview(){
                 <div className="production-line-list ">
                     <div className="production-line-list-inner scrollable">
                         {productionLines.map((line) => (
-                          <div key={line.Id} className="production-line-list-item">
+                          <div
+                            key={line.Id}
+                            className="production-line-list-item"
+                            onMouseEnter={() => setHighlightedLineId(line.Id)}
+                            onMouseLeave={() => setHighlightedLineId(null)}
+                            onFocus={() => setHighlightedLineId(line.Id)}
+                            onBlur={(event) => {
+                              if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                                setHighlightedLineId(null)
+                              }
+                            }}
+                          >
                             <button onClick={() => setSelectedLine(line)}>
                                     <div className="flex flex-column">
                                         <div className="flex flex-row">
@@ -241,7 +253,11 @@ export function Overview(){
                   getStatusClass={getStatusClass}
                 />
               ) : (
-                <StatusTimeline lines={productionLines} selectedLine={selectedLine} eventsByLine={eventsByLine}/>
+                <StatusTimeline
+                  lines={productionLines}
+                  eventsByLine={eventsByLine}
+                  highlightedLineId={highlightedLineId}
+                />
               )}
             </div>
         </div>
