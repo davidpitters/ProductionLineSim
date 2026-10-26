@@ -5,6 +5,7 @@ interface LineDetailProps {
 	line: ProductionLine
 	events: DowntimeEvent[]
 	onBack: () => void
+	getStatusClass: (reason: string) => string
 }
 
 interface EventRow {
@@ -69,17 +70,7 @@ const formatDuration = (totalSeconds: number): string => {
 		.join(':')
 }
 
-const getStatusClass = (reason: string): string => {
-	switch (reason.toLowerCase()) {
-		case 'running': return 'status-running'
-		case 'starved': return 'status-starved'
-		case 'blocked': return 'status-blocked'
-		case 'down': return 'status-down'
-		default: return 'status-unknown'
-	}
-}
-
-export function LineDetail({ line, events, onBack }: LineDetailProps) {
+export function LineDetail({ line, events, onBack, getStatusClass }: LineDetailProps) {
 	const initialTo = new Date()
 	const [from, setFrom] = useState(
 		toLocalDateTimeInput(new Date(initialTo.getTime() - 8 * 60 * 60 * 1000)),

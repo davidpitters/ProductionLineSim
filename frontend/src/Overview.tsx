@@ -129,6 +129,26 @@ function formatDuration(totalSeconds: number): string {
     .join(':')
 }
 
+function getStatusClass(reason: string): string {
+  switch (reason.toLowerCase()) {
+    case 'running': return 'status-running'
+    case 'starved': return 'status-starved'
+    case 'blocked': return 'status-blocked'
+    case 'down': return 'status-down'
+    default: return 'status-unknown'
+  }
+}
+
+function getStatusTextClass(reason: string): string {
+  switch (reason.toLowerCase()) {
+    case 'running': return 'status-running-text'
+    case 'starved': return 'status-starved-text'
+    case 'blocked': return 'status-blocked-text'
+    case 'down': return 'status-down-text'
+    default: return 'status-unknown-text'
+  }
+}
+
 export function Overview(){
     //const [productionLines, setProductionLines] = useState<Interfaces.ProductionLine[]>([])
     const [productionLines, setProductionLines] =
@@ -202,11 +222,8 @@ export function Overview(){
                                                 {line.Name}
                                             </div>
                                             <div>
-                                                Current Status Seconds: {formatDuration(getCurrentStatusSeconds(line.StatusUpdatedAtUtc))}
+                                                <span className={getStatusTextClass(Interfaces.getProductionLineStatusDisplayName(line.Status))}>{Interfaces.getProductionLineStatusDisplayName(line.Status)}</span> for {formatDuration(getCurrentStatusSeconds(line.StatusUpdatedAtUtc))}
                                             </div>
-                                        </div>
-                                        <div className="flex flex-row">
-                                            {line.Status}
                                         </div>
                                     </div>
                                 </button>
@@ -221,6 +238,7 @@ export function Overview(){
                   line={selectedLine}
                   events={eventsByLine[selectedLine.Id] ?? []}
                   onBack={() => setSelectedLine(null)}
+                  getStatusClass={getStatusClass}
                 />
               ) : (
                 <StatusTimeline lines={productionLines} selectedLine={selectedLine} eventsByLine={eventsByLine}/>

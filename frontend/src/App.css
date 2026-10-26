@@ -196,6 +196,11 @@
     background: #f9f9f9;
 }
 
+.production-line-list-item button{
+  width: 100%;
+  height: 100%;
+}
+
 /* StatusTimeline styles */
 .status-timeline {
   width: calc(100% - 15px);
@@ -307,21 +312,45 @@
   background: #159447;
 }
 
+.status-running-text {
+  color: #159447;
+}
+
 .status-starved {
   background: #f2cf28;
 }
+
+.status-starved-text {
+  color: #f2cf28;
+}
+
 
 .status-blocked {
   background: #2876d2;
 }
 
+.status-blocked-text {
+  color: #2876d2;
+}
+
+
 .status-down {
   background: #dc3545;
 }
 
+.status-down-text {
+  color: #dc3545;
+}
+
+
 .status-unknown {
   background: #888;
 }
+
+.status-unknown-text {
+  color: #888;
+}
+
 
 .popover-align-right .timeline-popover {
   right: 0;
