@@ -36,13 +36,15 @@ Next, I set up my services. The services are comprised of an background service 
 
 Next, I set up my front end. To expedite the process of class creation I provided GPT-6 Luna with my Models and instructed it to give me Typescript equivalents. I wanted 4 screens that are navigated by a sidebar:
 - Overview
-- Events
-- Performance
-- Targets
+- Events (future)
+- Performance (future)
+- Targets (future)
 I incrementally pieced the front end together, going back and forth between writing my react components and styling them with css.
-I first created the app container in the App.tsx file, which holds the sidebar and the main content. In the sidebar are 4 buttons that act as tab toggles to change the main content screen. The main content has a condition check for the selected tab and shows the correct page based on that. 
+I first created the app container in the App.tsx file, which holds the sidebar and the main content. In the sidebar are 4 buttons that act as tab toggles to change the main content screen. The main content has a condition check for the selected tab and shows the correct page based on that. For the scope of this project, I implemented the first screen which has the Line Status Overview and Line Detail screens. 
 When writing the css for the layout, I set the background color for each so that I could see their position on the page, their height/width as well as their respective content positioning. 
-For the screens, I took inspiration from my research on ZPI's Monitor and Report software that I found on the company website. I used it as a baseline but put my own spin on it such as clicking on a Production Line highlighting the corresponding line in the Overview, being able to scroll through and search for a Production Line, 
+For the screens, I took inspiration from my research on ZPI's Monitor and Report software that I found on the company website. I used it as a baseline but put my own spin on it, such as clicking on a Production Line to open the corresponding line in the Line Detail screen or being able to scroll through and search for a Production Line, for example. 
+I drew up a mock UI in paint for the Line detail screen, based on the information given in the project handoff document. I supplied the mock UI image as well as the following prompt for GPT-6 Luna to expedite the creation of the xml.
+"When a line is selected, the right content that has the status timeline should instead show the LineDetail. This screen shows the line name at the top and a date range selector with from and to dates. Under that is the Total Downtime and Event count for that period. Under that is a grid. The grid has columns for Event, Start Time, Duration, and Reason. The grid is sorted descending by start time, with the most recent event at the top. The Event column cells are color coordinated to match the status styles in the css file"
 
 Overview
 - Each production line has a record on the timeline which shows a compilation of segments over the range of time. A segment is composed of a start, and end, and the status. I assigned each status a unique color to be able to differentiate them. 
@@ -54,7 +56,7 @@ From my research on ZPI I found some additional key functional requirements:
 
 How I would expand on this project in the future would be to do the following:
 - Transform generic classes into entities and DTOs with the proper naming convention *Entity.cs and *DTO.cs
-
+- Implement the rest of the screens (Events, Performance, Targets)
 
 The greatest challenge for me was to be able to properly understand what classes to create. Taking the functional requirements and translating them into the classes and data transfer objects that fulfill the requirements while not being overengineered.
 

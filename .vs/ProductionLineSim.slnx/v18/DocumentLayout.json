@@ -67,8 +67,7 @@
               "ViewState": "AgIAAPUAAAAAAAAAAAAIwP8AAABBAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-10-23T21:34:31.164Z",
-              "IsPinned": true,
-              "EditorCaption": ""
+              "IsPinned": true
             },
             {
               "$type": "Document",
@@ -95,8 +94,7 @@
               "ViewState": "AgIAAAYAAAAAAAAAAAAAAA0AAAA3AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-10-23T21:24:49.726Z",
-              "IsPinned": true,
-              "EditorCaption": ""
+              "IsPinned": true
             },
             {
               "$type": "Document",
@@ -108,8 +106,7 @@
               "RelativeToolTip": "Services\\DowntimeCalculator.cs",
               "ViewState": "AgIAAAIAAAAAAAAAAIAwwBsAAADRAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-10-24T02:46:41.304Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-10-24T02:46:41.304Z"
             },
             {
               "$type": "Document",
@@ -121,8 +118,7 @@
               "RelativeToolTip": "Enums\\MessageStatusEnum.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAqwAQAAAAQAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-10-23T21:02:25.161Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-10-23T21:02:25.161Z"
             },
             {
               "$type": "Document",
@@ -134,8 +130,7 @@
               "RelativeToolTip": "Classes\\IngestionMessage.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAqwA4AAAAwAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-10-24T03:19:09.636Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-10-24T03:19:09.636Z"
             },
             {
               "$type": "Document",
@@ -147,8 +142,7 @@
               "RelativeToolTip": "Services\\IngestionQueueProcessor.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAwAAAA/AAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-10-24T15:40:01.529Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-10-24T15:40:01.529Z"
             },
             {
               "$type": "Document",
@@ -160,8 +154,7 @@
               "RelativeToolTip": "Classes\\DowntimeEvent.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAsAAAAFAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-10-24T02:33:59.706Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-10-24T02:33:59.706Z"
             },
             {
               "$type": "Document",
@@ -173,8 +166,7 @@
               "RelativeToolTip": "Classes\\DowntimeReport.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAoAAAAuAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-10-24T02:34:13.085Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-10-24T02:34:13.085Z"
             },
             {
               "$type": "Document",
@@ -186,8 +178,7 @@
               "RelativeToolTip": "Enums\\EnumExtensions\\EnumExtensions.cs",
               "ViewState": "AgIAAAUAAAAAAAAAAAA7wBwAAAAJAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-10-24T02:41:39.195Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-10-24T02:41:39.195Z"
             },
             {
               "$type": "Document",
@@ -199,8 +190,7 @@
               "RelativeToolTip": "Enums\\ProductionLineStatusEnum.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAwAAAAgAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-10-23T20:54:58.947Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-10-23T20:54:58.947Z"
             }
           ]
         }

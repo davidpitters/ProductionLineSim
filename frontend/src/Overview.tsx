@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import * as Interfaces from './interfaces/interfaces'
 import { StatusTimeline } from './StatusTimeline'
+import { LineDetail } from './LineDetail'
 
 const mockProductionLines: Interfaces.ProductionLine[] = [
   {
@@ -142,8 +143,8 @@ export function Overview(){
                 <div className="production-line-list ">
                     <div className="production-line-list-inner scrollable">
                         {productionLines.map((line) => (
-                            <div className="production-line-list-item">
-                                <button key={line.Id} onClick={() => setSelectedLine(line)}>
+                          <div key={line.Id} className="production-line-list-item">
+                            <button onClick={() => setSelectedLine(line)}>
                                     <div className="flex flex-column">
                                         <div className="flex flex-row">
                                             <div>
@@ -164,7 +165,14 @@ export function Overview(){
                 </div>
             </div>
             <div className="right-content">
-                <StatusTimeline lines={productionLines} selectedLine={selectedLine}  eventsByLine={eventsByLine}/>
+              {selectedLine ? (
+                <LineDetail
+                  line={selectedLine}
+                  events={eventsByLine[selectedLine.Id] ?? []}
+                />
+              ) : (
+                <StatusTimeline lines={productionLines} selectedLine={selectedLine} eventsByLine={eventsByLine}/>
+              )}
             </div>
         </div>
     )
