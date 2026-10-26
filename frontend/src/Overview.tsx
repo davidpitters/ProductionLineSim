@@ -169,6 +169,7 @@ export function Overview(){
                 <LineDetail
                   line={selectedLine}
                   events={eventsByLine[selectedLine.Id] ?? []}
+                  onBack={() => setSelectedLine(null)}
                 />
               ) : (
                 <StatusTimeline lines={productionLines} selectedLine={selectedLine} eventsByLine={eventsByLine}/>

@@ -4,6 +4,7 @@ import type { DowntimeEvent, ProductionLine } from './interfaces/interfaces'
 interface LineDetailProps {
 	line: ProductionLine
 	events: DowntimeEvent[]
+	onBack: () => void
 }
 
 interface EventRow {
@@ -14,6 +15,37 @@ interface EventRow {
 const toLocalDateTimeInput = (value: Date): string => {
 	const local = new Date(value.getTime() - value.getTimezoneOffset() * 60_000)
 	return local.toISOString().slice(0, 16)
+}
+
+const getDatePart = (value: string): string => value.slice(0, 10)
+
+const getTimePart = (value: string): string => value.slice(11, 16)
+
+const updateDateTimePart = (current: string, part: 'date' | 'time', value: string): string => {
+	const date = part === 'date' ? value : getDatePart(current)
+	const time = part === 'time' ? value : getTimePart(current)
+	return `${date}T${time}`
+}
+
+const parseLocalDateTime = (value: string): number | null => {
+	const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value)
+	if (!match) return null
+
+	const [year, month, day, hour, minute] = match.slice(1).map(Number)
+	if (hour > 23 || minute > 59) return null
+
+	const date = new Date(year, month - 1, day, hour, minute)
+	if (
+		date.getFullYear() !== year ||
+		date.getMonth() !== month - 1 ||
+		date.getDate() !== day ||
+		date.getHours() !== hour ||
+		date.getMinutes() !== minute
+	) {
+		return null
+	}
+
+	return date.getTime()
 }
 
 const formatDateTime = (value: string): string =>
@@ -47,7 +79,7 @@ const getStatusClass = (reason: string): string => {
 	}
 }
 
-export function LineDetail({ line, events }: LineDetailProps) {
+export function LineDetail({ line, events, onBack }: LineDetailProps) {
 	const initialTo = new Date()
 	const [from, setFrom] = useState(
 		toLocalDateTimeInput(new Date(initialTo.getTime() - 8 * 60 * 60 * 1000)),
@@ -55,11 +87,11 @@ export function LineDetail({ line, events }: LineDetailProps) {
 	const [to, setTo] = useState(toLocalDateTimeInput(initialTo))
 	const [now] = useState(Date.now())
 
-	const fromMs = new Date(from).getTime()
-	const toMs = new Date(to).getTime()
-	const validRange = Number.isFinite(fromMs) && Number.isFinite(toMs) && fromMs < toMs
+	const fromMs = parseLocalDateTime(from)
+	const toMs = parseLocalDateTime(to)
+	const validRange = fromMs !== null && toMs !== null && fromMs < toMs
 
-	const rows: EventRow[] = validRange
+	const rows: EventRow[] = fromMs !== null && toMs !== null && fromMs < toMs
 		? events
 				.map((event) => {
 					const start = Date.parse(event.StartedAtUtc)
@@ -72,9 +104,14 @@ export function LineDetail({ line, events }: LineDetailProps) {
 						durationSeconds: Math.max(0, Math.floor((overlapEnd - overlapStart) / 1000)),
 					}
 				})
-				.filter(({ event, durationSeconds }) =>
-					durationSeconds > 0 || Date.parse(event.StartedAtUtc) === fromMs,
-				)
+				.filter(({ event, durationSeconds }) => {
+					const startedAt = Date.parse(event.StartedAtUtc)
+					return (
+						startedAt >= fromMs &&
+						startedAt < toMs &&
+						(durationSeconds > 0 || startedAt === fromMs)
+					)
+				})
 				.sort((a, b) => Date.parse(b.event.StartedAtUtc) - Date.parse(a.event.StartedAtUtc))
 		: []
 
@@ -82,21 +119,60 @@ export function LineDetail({ line, events }: LineDetailProps) {
 
 	return (
 		<section className="line-detail">
-			<h1>{line.Name}</h1>
+			<div className="line-detail-header">
+				<button type="button" className="line-detail-back" onClick={onBack}>
+					&lt; Back
+				</button>
+				<h1>{line.Name}</h1>
+			</div>
 
 			<div className="line-detail-date-range">
-				<label>
-					From
-					<input type="datetime-local" value={from} onChange={(event) => setFrom(event.target.value)} />
-				</label>
-				<label>
-					To
-					<input type="datetime-local" value={to} onChange={(event) => setTo(event.target.value)} />
-				</label>
+				<div className="line-detail-range-field">
+					<span>From</span>
+					<div className="line-detail-date-time-inputs">
+						<input
+							aria-label="From date"
+							type="date"
+							value={getDatePart(from)}
+							onChange={(event) => setFrom((current) => updateDateTimePart(current, 'date', event.target.value))}
+						/>
+						<input
+							aria-label="From time (24-hour, HH:mm)"
+							type="text"
+							inputMode="numeric"
+							maxLength={5}
+							placeholder="HH:mm"
+							pattern="([01][0-9]|2[0-3]):[0-5][0-9]"
+							value={getTimePart(from)}
+							onChange={(event) => setFrom((current) => updateDateTimePart(current, 'time', event.target.value))}
+						/>
+					</div>
+				</div>
+				<div className="line-detail-range-field">
+					<span>To</span>
+					<div className="line-detail-date-time-inputs">
+						<input
+							aria-label="To date"
+							type="date"
+							value={getDatePart(to)}
+							onChange={(event) => setTo((current) => updateDateTimePart(current, 'date', event.target.value))}
+						/>
+						<input
+							aria-label="To time (24-hour, HH:mm)"
+							type="text"
+							inputMode="numeric"
+							maxLength={5}
+							placeholder="HH:mm"
+							pattern="([01][0-9]|2[0-3]):[0-5][0-9]"
+							value={getTimePart(to)}
+							onChange={(event) => setTo((current) => updateDateTimePart(current, 'time', event.target.value))}
+						/>
+					</div>
+				</div>
 			</div>
 
 			{!validRange ? (
-				<p className="line-detail-validation">Choose a valid range where From is earlier than To.</p>
+				<p className="line-detail-validation">Enter valid dates and 24-hour times (HH:mm), and make sure From is earlier than To.</p>
 			) : (
 				<>
 					<div className="line-detail-summary">

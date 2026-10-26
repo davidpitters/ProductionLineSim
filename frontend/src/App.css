@@ -259,6 +259,18 @@
   margin: 0;
 }
 
+.line-detail-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1rem;
+}
+
+.line-detail-back {
+  color: #213547;
+  background: #f9f9f9;
+}
+
 .line-detail-date-range,
 .line-detail-summary {
   display: flex;
@@ -266,10 +278,24 @@
   gap: 1rem;
 }
 
-.line-detail-date-range label {
+.line-detail-range-field {
   display: grid;
   gap: 0.35rem;
   text-align: left;
+}
+
+.line-detail-date-time-inputs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.line-detail-date-time-inputs input[type='date'] {
+  min-width: 150px;
+}
+
+.line-detail-date-time-inputs input[type='text'] {
+  width: 5.5rem;
 }
 
 .line-detail-stat {
