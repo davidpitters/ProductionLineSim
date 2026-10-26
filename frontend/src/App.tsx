@@ -33,21 +33,16 @@ function App() {
   return (
     <>
       <div className="app-container">
-        {/* <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button> */}
         {/* Render tabs based on tabIndex */}
         <div className="sidebar">
-          <button onClick={() => setTabIndex(0)}>Overview</button>
-          <button onClick={() => setTabIndex(1)}>Events</button>
-          <button onClick={() => setTabIndex(2)}>Performance</button>
-          <button onClick={() => setTabIndex(3)}>Targets</button>
+          <button onClick={() => setTabIndex(0)}>Lines</button>
+          <button onClick={() => setTabIndex(1)}>Performance</button>
+          <button onClick={() => setTabIndex(2)}>Targets</button>
         </div>
         <div className="main-content">
           {tabIndex === 0 && <Overview />}
-          {tabIndex === 1 && <Events />}
-          {tabIndex === 2 && <Performance />}
-          {tabIndex === 3 && <Targets />}
+          {tabIndex === 1 && <Performance />}
+          {tabIndex === 2 && <Targets />}
         </div>
       </div>
     </>

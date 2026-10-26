@@ -119,10 +119,12 @@ export function LineDetail({ line, events, onBack }: LineDetailProps) {
 
 	return (
 		<section className="line-detail">
-			<div className="line-detail-header">
+			<div className="line-detail-back-container">
 				<button type="button" className="line-detail-back" onClick={onBack}>
 					&lt; Back
 				</button>
+			</div>
+			<div className="line-detail-header">
 				<h1>{line.Name}</h1>
 			</div>
 

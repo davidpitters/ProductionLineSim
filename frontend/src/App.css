@@ -57,7 +57,7 @@
     gap: 1rem;
     justify-content: space-evenly;
     padding: 1rem;
-    background: rgb(221, 221, 221);
+    background: rgb(23, 32, 95);
 }
 
 .main-content{
@@ -73,12 +73,92 @@
 
 .overview{
     display: flex;
+  min-width: 0;
     .left-content{
         flex: 1;
     }
     .right-content{
         flex: 3;
+    min-width: 0;
+  }
+  &.line-selected {
+    .right-content {
+      flex: 1;
+      width: 100%;
     }
+    }
+}
+
+.production-line-search {
+  display: flex;
+  min-height: 50px;
+  align-items: center;
+  gap: 0.7rem;
+  margin: 0 0.75rem;
+  padding: 0 0.85rem;
+  border: 1px solid #cbd1d8;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 2px 8px rgb(24 39 75 / 6%);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.production-line-search:focus-within {
+  border-color: #2876d2;
+  box-shadow: 0 0 0 3px rgb(40 118 210 / 15%);
+}
+
+.production-line-search-icon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+  stroke: #687385;
+  stroke-linecap: round;
+  stroke-width: 1.8;
+}
+
+.production-line-search input[type='search'] {
+  width: 100%;
+  min-width: 0;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #213547;
+  font: inherit;
+  text-align: left;
+  box-shadow: none;
+}
+
+.production-line-search input[type='search']::-webkit-search-cancel-button {
+  display: none;
+}
+
+.production-line-search-clear {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #687385;
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.production-line-search-clear:hover {
+  border-color: transparent;
+  background: #eef1f5;
+  color: #213547;
+}
+
+.production-line-search-clear:focus-visible {
+  outline: 2px solid #2876d2;
+  outline-offset: 1px;
 }
 
 .scrollable{
@@ -256,7 +336,7 @@
 }
 
 .line-detail h1 {
-  margin: 0;
+  margin: 0 auto;
 }
 
 .line-detail-header {
@@ -264,6 +344,11 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 1rem;
+}
+
+.line-detail-back-container {
+  display: flex;
+  justify-content: flex-start;
 }
 
 .line-detail-back {
@@ -276,6 +361,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
+  justify-content: center;
 }
 
 .line-detail-range-field {
@@ -316,7 +402,7 @@
 }
 
 .line-detail-table-container {
-  max-height: 500px;
+  max-height: 350px;
   overflow: auto;
 }
 
