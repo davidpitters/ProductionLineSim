@@ -219,17 +219,17 @@ namespace ProductionLineSim.Services
                 ("sample-l1-down", "line-1", "Mechanical Fault",
                     now.AddHours(-5), now.AddHours(-4).AddMinutes(-42)),
                 ("sample-l1-starved", "line-1", "Material Shortage",
-                    now.AddHours(-3), now.AddHours(-2).AddMinutes(-35)),
+                    now.AddHours(-3), now.AddHours(-2).AddMinutes(-40)),
                 ("sample-l1-blocked", "line-1", "Conveyor Jam",
                     now.AddHours(-1), now.AddHours(-1).AddMinutes(18)),
                 ("sample-l2-down", "line-2", "Sensor Fault",
-                    now.AddHours(-2), now.AddHours(-1).AddMinutes(-20)),
+                    now.AddHours(-2), now.AddHours(-1).AddMinutes(-40)),
                 ("sample-l2-blocked", "line-2", "Downstream Blockage",
                     now.AddMinutes(-48), now.AddMinutes(-30)),
                 ("sample-l3-starved", "line-3", "Cap Feeder Empty",
                     now.AddHours(-4), now.AddHours(-3).AddMinutes(-45)),
                 ("sample-l3-down", "line-3", "Mechanical Fault",
-                    now.AddMinutes(-25), (DateTimeOffset?)null)
+                    now.AddMinutes(-20), now)
             };
 
             foreach (var sample in samples)
@@ -248,6 +248,48 @@ namespace ProductionLineSim.Services
 
             var reasons = DowntimeReasonCatalog.Causes.ToArray();
 
+            var utcToday = now.UtcDateTime.Date;
+            for (var dayOffset = 30; dayOffset >= 0; dayOffset--)
+            {
+                var eventDate = utcToday.AddDays(-dayOffset);
+                var dayStart = new DateTimeOffset(eventDate, TimeSpan.Zero);
+                var dayKey = eventDate.ToString("yyyyMMdd", CultureInfo.InvariantCulture);
+                var dayIndex = 30 - dayOffset;
+
+                for (var lineIndex = 0; lineIndex < lines.Length; lineIndex++)
+                {
+                    var line = lines[lineIndex];
+                    for (var slot = 0; slot < 10; slot++)
+                    {
+                        var proposedStartMinute = 45 + (slot * 135) + (lineIndex * 3) + (dayIndex % 17);
+                        var currentUtcMinute = dayOffset == 0
+                            ? Math.Max(0, (int)(now - dayStart).TotalMinutes)
+                            : 24 * 60;
+                        var nominalDurationMinutes = 1 + ((dayIndex * 7 + lineIndex * 11 + slot * 13) % 20);
+                        var durationMinutes = dayOffset == 0
+                            ? Math.Min(nominalDurationMinutes, Math.Max(1, currentUtcMinute - 1))
+                            : nominalDurationMinutes;
+                        var latestSafeStartMinute = Math.Max(0, currentUtcMinute - durationMinutes - 1);
+                        var startMinute = dayOffset == 0
+                            ? latestSafeStartMinute * slot / 10
+                            : proposedStartMinute;
+                        var startedAt = dayStart.AddMinutes(startMinute);
+                        var sourceEventId = $"history-{line.Id}-{dayKey}-{slot:D2}";
+
+                        await InsertSeedEventAsync(
+                            connection,
+                            transaction,
+                            sourceEventId,
+                            line.Id,
+                            reasons[(dayIndex + lineIndex + slot) % reasons.Length],
+                            startedAt,
+                            startedAt.AddMinutes(durationMinutes),
+                            now,
+                            cancellationToken);
+                    }
+                }
+            }
+
             for (var lineIndex = 0; lineIndex < lines.Length; lineIndex++)
             {
                 var line = lines[lineIndex];
@@ -260,7 +302,7 @@ namespace ProductionLineSim.Services
                     var sourceEventId = $"sample-{line.Id}-event-{slot:D2}";
                     var startOffsetMinutes = 450 - (slot * 450 / targetEventCount);
                     var startedAt = now.AddMinutes(-startOffsetMinutes);
-                    var durationMinutes = 6 + ((slot * 7 + lineIndex * 3) % 15);
+                    var durationMinutes = 1 + ((slot * 7 + lineIndex * 3) % 20);
 
                     await InsertSeedEventAsync(
                         connection,
@@ -295,10 +337,16 @@ namespace ProductionLineSim.Services
             await using var command = connection.CreateCommand();
             command.Transaction = transaction;
             command.CommandText = """
-                INSERT OR IGNORE INTO DowntimeEvents
+                INSERT INTO DowntimeEvents
                     (Id, SourceEventId, LineId, Reason, StartedAtUtc, EndedAtUtc, ReceivedAtUtc)
                 VALUES
-                    ($id, $source, $line, $reason, $start, $end, $received);
+                    ($id, $source, $line, $reason, $start, $end, $received)
+                ON CONFLICT(SourceEventId) DO UPDATE SET
+                    LineId = excluded.LineId,
+                    Reason = excluded.Reason,
+                    StartedAtUtc = excluded.StartedAtUtc,
+                    EndedAtUtc = excluded.EndedAtUtc,
+                    ReceivedAtUtc = excluded.ReceivedAtUtc;
                 """;
             command.Parameters.AddWithValue("$id", GuidFrom(sourceEventId).ToString());
             command.Parameters.AddWithValue("$source", sourceEventId);
@@ -358,7 +406,7 @@ namespace ProductionLineSim.Services
             var events = new List<DowntimeEvent>();
             await using var connection = OpenConnection();
             await using var command = connection.CreateCommand();
-            command.CommandText = "SELECT Id,SourceEventId,Reason,StartedAtUtc,EndedAtUtc FROM DowntimeEvents WHERE LineId=$line AND StartedAtUtc <= $to AND (EndedAtUtc IS NULL OR EndedAtUtc > $from) ORDER BY StartedAtUtc DESC;";
+            command.CommandText = "SELECT Id,SourceEventId,Reason,StartedAtUtc,EndedAtUtc FROM DowntimeEvents WHERE LineId=$line AND StartedAtUtc < $to AND (EndedAtUtc IS NULL OR EndedAtUtc > $from) ORDER BY StartedAtUtc DESC;";
             command.Parameters.AddWithValue("$line", lineId);
             command.Parameters.AddWithValue("$from", Format(from));
             command.Parameters.AddWithValue("$to", Format(to));

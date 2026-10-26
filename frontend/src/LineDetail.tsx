@@ -131,9 +131,9 @@ export function LineDetail({ line, onBack, getStatusClass }: LineDetailProps) {
 					const startedAt = Date.parse(event.StartedAtUtc)
 					return (
 						startedAt >= fromMs &&
-						startedAt <= toMs &&
+						startedAt < toMs &&
 						(statusFilter === 'All' || getProductionLineStatusDisplayName(event.Status).toLowerCase() === statusFilter.toLowerCase()) &&
-						(durationSeconds > 0 || startedAt === fromMs || startedAt === toMs)
+						(durationSeconds > 0 || startedAt === fromMs)
 					)
 				})
 				.sort((a, b) => Date.parse(b.event.StartedAtUtc) - Date.parse(a.event.StartedAtUtc))

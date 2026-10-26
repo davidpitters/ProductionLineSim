@@ -4,6 +4,24 @@ import { fetchDowntimeEvents, fetchProductionLines } from './api'
 import { StatusTimeline } from './StatusTimeline'
 import { LineDetail } from './LineDetail'
 
+const toLocalDateTimeInput = (value: Date): string => {
+  const local = new Date(value.getTime() - value.getTimezoneOffset() * 60_000)
+  return local.toISOString().slice(0, 16)
+}
+
+const parseLocalDateTime = (value: string): number | null => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value)
+  if (!match) return null
+  const [year, month, day, hour, minute] = match.slice(1).map(Number)
+  const date = new Date(year, month - 1, day, hour, minute)
+  if (
+    hour > 23 || minute > 59 ||
+    date.getFullYear() !== year || date.getMonth() !== month - 1 ||
+    date.getDate() !== day || date.getHours() !== hour || date.getMinutes() !== minute
+  ) return null
+  return date.getTime()
+}
+
 function formatDuration(totalSeconds: number): string {
   const hours = Math.floor(totalSeconds / 3600)
   const minutes = Math.floor((totalSeconds % 3600) / 60)
@@ -41,10 +59,20 @@ export function Overview(){
     const [highlightedLineId, setHighlightedLineId] = useState<string | null>(null)
     const [searchTerm, setSearchTerm] = useState('')
     const [now, setNow] = useState(Date.now())
-    const [timelineNow, setTimelineNow] = useState(Date.now())
+    const [timelineFrom, setTimelineFrom] = useState(() => {
+      const current = Date.now()
+      return toLocalDateTimeInput(new Date(current - 8 * 60 * 60 * 1000))
+    })
+    const [timelineTo, setTimelineTo] = useState(() => toLocalDateTimeInput(new Date()))
     const [isLoading, setIsLoading] = useState(true)
     const [loadError, setLoadError] = useState<string | null>(null)
     const [retryToken, setRetryToken] = useState(0)
+    const timelineFromMs = parseLocalDateTime(timelineFrom)
+    const timelineToMs = parseLocalDateTime(timelineTo)
+    const nowLocal = toLocalDateTimeInput(new Date(now))
+    const maxFromLocal = toLocalDateTimeInput(new Date(now - 60_000))
+    const validTimelineRange = timelineFromMs !== null && timelineToMs !== null &&
+      timelineFromMs <= now - 60_000 && timelineFromMs < timelineToMs && timelineToMs <= now
 
     const normalizedSearchTerm = searchTerm.trim().toLowerCase()
     const visibleLines = normalizedSearchTerm
@@ -66,21 +94,26 @@ export function Overview(){
     }, [])
 
     useEffect(() => {
-      const timer = window.setInterval(() => setTimelineNow(Date.now()), 60_000)
-      return () => window.clearInterval(timer)
-    }, [])
-
-    useEffect(() => {
       const controller = new AbortController()
+
+      if (!validTimelineRange || timelineFromMs === null || timelineToMs === null) {
+        setEventsByLine({})
+        setIsLoading(false)
+        return () => controller.abort()
+      }
+
+      const fromTimestamp = timelineFromMs
+      const toTimestamp = timelineToMs
 
       async function loadOverview() {
         try {
+          setIsLoading(true)
           setLoadError(null)
           const lines = await fetchProductionLines(controller.signal)
           setProductionLines(lines)
 
-          const to = new Date(timelineNow)
-          const from = new Date(timelineNow - 8 * 60 * 60 * 1000)
+          const from = new Date(fromTimestamp)
+          const to = new Date(toTimestamp)
           const lineEvents = await Promise.all(
             lines.map((line) => fetchDowntimeEvents(line.Id, from, to, controller.signal)),
           )
@@ -98,7 +131,7 @@ export function Overview(){
 
       void loadOverview()
       return () => controller.abort()
-    }, [retryToken, timelineNow])
+    }, [retryToken, timelineFromMs, timelineToMs, validTimelineRange])
 
     return (
         <div className={`overview screen${selectedLine ? ' line-selected' : ''}`}>
@@ -188,6 +221,13 @@ export function Overview(){
                   lines={visibleLines}
                   eventsByLine={eventsByLine}
                   highlightedLineId={highlightedLineId}
+                  from={timelineFrom}
+                  to={timelineTo}
+                  nowLocal={nowLocal}
+                  nowMs={now}
+                  maxFromLocal={maxFromLocal}
+                  onFromChange={setTimelineFrom}
+                  onToChange={setTimelineTo}
                 />
               )}
             </div>

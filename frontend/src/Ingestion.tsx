@@ -64,7 +64,10 @@ export function Ingestion() {
   const [startedAt, setStartedAt] = useState(localDateTime(new Date()))
   const [failureMode, setFailureMode] = useState<'none' | 'transient' | 'permanent'>('none')
   const [sourceEventId, setSourceEventId] = useState('')
+  const [lastSubmittedRequest, setLastSubmittedRequest] = useState<MachineEventRequest | null>(null)
   const [message, setMessage] = useState<IngestionMessage | null>(null)
+  const [idempotencyResult, setIdempotencyResult] = useState<string | null>(null)
+  const [isReplaying, setIsReplaying] = useState(false)
   const [lifecycle, setLifecycle] = useState<'idle' | 'submitting' | 'accepted' | 'processing' | 'processed' | 'failed'>('idle')
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -207,6 +210,8 @@ export function Ingestion() {
       StartedAtUtc: new Date(startedAt).toISOString(),
       EndedAtUtc: null,
     }
+    setLastSubmittedRequest(request)
+    setIdempotencyResult(null)
 
     try {
       const accepted = await submitMachineEvent(request, failureMode, controller.signal)
@@ -234,6 +239,35 @@ export function Ingestion() {
         setLifecycle('failed')
         setError(submitError instanceof Error ? submitError.message : 'The machine event could not be submitted.')
       }
+    }
+  }
+
+  async function replayLastRequest() {
+    if (!lastSubmittedRequest || isReplaying) return
+    setIsReplaying(true)
+    setIdempotencyResult(null)
+    try {
+      const replay = await submitMachineEvent(lastSubmittedRequest, 'none')
+      if (!replay.isDuplicate) {
+        setIdempotencyResult('The replay was accepted as a new request. It did not match an existing source event.')
+        return
+      }
+
+      const existingMessage = await fetchIngestionMessage(replay.messageId)
+      setMessage(existingMessage)
+      setLifecycle(existingMessage.status === 'Processed'
+        ? 'processed'
+        : existingMessage.status === 'Failed'
+          ? 'failed'
+          : existingMessage.status === 'Processing'
+            ? 'processing'
+            : 'accepted')
+      setHealth(await fetchIngestionHealth())
+      setIdempotencyResult(`Duplicate recognized: the original message ${replay.messageId} was returned. No second event was queued.`)
+    } catch (replayError) {
+      setIdempotencyResult(replayError instanceof Error ? replayError.message : 'Unable to replay the event.')
+    } finally {
+      setIsReplaying(false)
     }
   }
 
@@ -434,6 +468,18 @@ export function Ingestion() {
                 <div><span>Last attempt</span><strong>{formatTime(message.lastAttemptedAtUtc)}</strong></div>
                 {message.processedAtUtc && <div><span>Processed</span><strong>{formatTime(message.processedAtUtc)}</strong></div>}
               </div>}
+              <div className="ingestion-idempotency-demo">
+                <button
+                  type="button"
+                  className="ingestion-idempotency-button"
+                  disabled={!lastSubmittedRequest || isReplaying || lifecycle === 'submitting'}
+                  onClick={() => void replayLastRequest()}
+                >
+                  {isReplaying ? 'Replaying same request…' : 'Replay same event (idempotency demo)'}
+                </button>
+                <small>This resends the last event with the exact same source event ID and payload.</small>
+                {idempotencyResult && <p role="status">{idempotencyResult}</p>}
+              </div>
               {lifecycle === 'processed' && <div className="ingestion-success-note"><strong>{selectedLine?.Name ?? 'Production line'} updated</strong><span>{reason} was recorded. Open Lines to view the updated timeline and status.</span></div>}
             </section>
 
