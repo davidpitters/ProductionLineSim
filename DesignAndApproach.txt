@@ -12,7 +12,7 @@ Processed Downtime Events - Validated records, queryable history
 Dashboard - displays Production status, Downtime reports, and Ingestion health
 With this, I prompted GPT-6 in ChatGPT to draft a design specification document that would give a high level blueprint on how the system will be built to fulfill its functional requirements. 
 
-Next, it was time to begin development. I began by instructing GPT-6 Luna in VSCode to scaffold the application according to my desired design. The design I went with was an ASP.NET Core Web API, with a React Typescript frontend. I used Vite for local web server development. I also opted for a SQLite database for persistent storage of queued messages in case of application shutdown. 
+Next, it was time to begin development. I began by instructing GPT-6 Luna in VSCode to scaffold the application according to my desired design. The design I went with was an ASP.NET Core Web API, with a React Typescript frontend. I used Vite for local web server development. I also opted for a SQLite database for persistent storage of queued messages in case of application shutdown.  I chose GPT-6 Luna on Medium because it has very low credit consumption and has the capabilities needed to perform for a small project like this as there was no existing codebase that it would need to understand for context.
 
 Once I had the skeleton of the project created, I made some adjustments to fit the folder structure that I wanted. I added a folder for Classes and a folder for Services.
 
@@ -45,6 +45,10 @@ When writing the css for the layout, I set the background color for each so that
 For the screens, I took inspiration from my research on ZPI's Monitor and Report software that I found on the company website. I used it as a baseline but put my own spin on it, such as clicking on a Production Line to open the corresponding line in the Line Detail screen or being able to scroll through and search for a Production Line, for example. 
 I drew up a mock UI in paint for the Line detail screen, based on the information given in the project handoff document. I supplied the mock UI image as well as the following prompt for GPT-6 Luna to expedite the creation of the xml.
 "When a line is selected, the right content that has the status timeline should instead show the LineDetail. This screen shows the line name at the top and a date range selector with from and to dates. Under that is the Total Downtime and Event count for that period. Under that is a grid. The grid has columns for Event, Start Time, Duration, and Reason. The grid is sorted descending by start time, with the most recent event at the top. The Event column cells are color coordinated to match the status styles in the css file"
+I continued to add in functionality to the front end without committing too much time to it. I went for a clean and easy to understand UI, with features that make sense such as a search bar and filters.
+To test my front end, I supplied it with mock data based on my classes. I used GPT-6 Luna to generate the mock data.
+
+Once I had the front end completed,
 
 Overview
 - Each production line has a record on the timeline which shows a compilation of segments over the range of time. A segment is composed of a start, and end, and the status. I assigned each status a unique color to be able to differentiate them. 
