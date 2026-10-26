@@ -50,7 +50,7 @@ function getSegments(
       segments.push({
         start: segmentStart,
         end,
-        status: event.Reason,
+        status: getProductionLineStatusDisplayName(event.Status),
       })
       cursor = end
     }

@@ -97,6 +97,7 @@ export interface DowntimeEvent {
   Id: string;
   SourceEventId: string;
   Reason: string;
+  Status: ProductionLineStatus;
   StartedAtUtc: string;
   EndedAtUtc: string | null;
   DurationSeconds: number;

@@ -1,13 +1,10 @@
 ﻿using ProductionLineSim.Classes;
 using ProductionLineSim.Enums;
-using ProductionLineSim.Enums.EnumExtensions;
 
 namespace ProductionLineSim.Services
 {
     public class DowntimeCalculator
     {
-        private static readonly string[] Reasons = { ProductionLineStatus.Down.GetDisplayName(), ProductionLineStatus.Starved.GetDisplayName(), ProductionLineStatus.Blocked.GetDisplayName() };
-
         public static DowntimeReport Calculate(string lineId, DateTimeOffset fromUtc, DateTimeOffset toUtc, IEnumerable<DowntimeEvent> sourceEvents, DateTimeOffset nowUtc)
         {
             var from = fromUtc.ToUniversalTime();
@@ -22,9 +19,18 @@ namespace ProductionLineSim.Services
                     var overlapStart = item.StartedAtUtc > from ? item.StartedAtUtc : from;
                     var overlapEnd = effectiveEnd < to ? effectiveEnd : to;
                     var seconds = Math.Max(0, (long)Math.Floor((overlapEnd - overlapStart).TotalSeconds));
-                    return new DowntimeEvent { Id = item.Id, SourceEventId = item.SourceEventId, Reason = item.Reason, StartedAtUtc = item.StartedAtUtc, EndedAtUtc = item.EndedAtUtc, DurationSeconds = seconds, IsOngoing = item.EndedAtUtc is null };
+                    return new DowntimeEvent { Id = item.Id, SourceEventId = item.SourceEventId, Reason = item.Reason, Status = DowntimeReasonCatalog.GetImpactStatus(item.Reason), StartedAtUtc = item.StartedAtUtc, EndedAtUtc = item.EndedAtUtc, DurationSeconds = seconds, IsOngoing = item.EndedAtUtc is null };
                 }).ToArray();
-            var breakdown = Reasons.Select(reason => new ReasonBreakdown{ Reason = reason, EventCount = events.Count(item => item.Reason == reason), TotalDowntimeSeconds = events.Where(item => item.Reason == reason).Sum(item => item.DurationSeconds) }).ToArray();
+            var breakdown = events
+                .GroupBy(item => item.Reason, StringComparer.OrdinalIgnoreCase)
+                .OrderBy(group => group.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(group => new ReasonBreakdown
+                {
+                    Reason = group.Key,
+                    EventCount = group.Count(),
+                    TotalDowntimeSeconds = group.Sum(item => item.DurationSeconds)
+                })
+                .ToArray();
             return new DowntimeReport { LineId = lineId, FromUtc = from, ToUtc = to, EventCount = events.Length, TotalDowntimeSeconds = events.Sum(item => item.DurationSeconds), Events = events, Breakdown = breakdown };
         }
     }

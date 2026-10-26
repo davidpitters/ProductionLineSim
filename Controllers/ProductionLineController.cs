@@ -14,8 +14,7 @@ namespace ProductionLineSim.Controllers
             return (await store.GetProductionLinesAsync(cancellationToken));
         }
 
-        [HttpGet]
-        [Route("api/productionlines/{lineId}/downtime")]
+        [HttpGet("{lineId}/downtime")]
         /// <summary>Returns the selected line's downtime report for a validated UTC time range.</summary>
         public async Task<ActionResult<DowntimeReport>> GetDowntimeAsync(string lineId, [FromQuery] DateTimeOffset? from, [FromQuery] DateTimeOffset? to, CancellationToken cancellationToken)
         {

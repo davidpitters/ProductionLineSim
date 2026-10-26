@@ -1,9 +1,9 @@
-import { useState } from 'react'
-import type { DowntimeEvent, ProductionLine } from './interfaces/interfaces'
+import { useEffect, useState } from 'react'
+import { getProductionLineStatusDisplayName, type DowntimeEvent, type ProductionLine } from './interfaces/interfaces'
+import { fetchDowntimeEvents } from './api'
 
 interface LineDetailProps {
 	line: ProductionLine
-	events: DowntimeEvent[]
 	onBack: () => void
 	getStatusClass: (reason: string) => string
 }
@@ -72,18 +72,47 @@ const formatDuration = (totalSeconds: number): string => {
 		.join(':')
 }
 
-export function LineDetail({ line, events, onBack, getStatusClass }: LineDetailProps) {
+export function LineDetail({ line, onBack, getStatusClass }: LineDetailProps) {
 	const initialTo = new Date()
 	const [from, setFrom] = useState(
 		toLocalDateTimeInput(new Date(initialTo.getTime() - 8 * 60 * 60 * 1000)),
 	)
 	const [to, setTo] = useState(toLocalDateTimeInput(initialTo))
 	const [statusFilter, setStatusFilter] = useState<StatusFilter>('All')
+	const [events, setEvents] = useState<DowntimeEvent[]>([])
+	const [eventsLoading, setEventsLoading] = useState(true)
+	const [eventsError, setEventsError] = useState<string | null>(null)
+	const [retryToken, setRetryToken] = useState(0)
 	const [now] = useState(Date.now())
 
 	const fromMs = parseLocalDateTime(from)
 	const toMs = parseLocalDateTime(to)
 	const validRange = fromMs !== null && toMs !== null && fromMs < toMs
+
+	useEffect(() => {
+		if (fromMs === null || toMs === null || fromMs >= toMs) {
+			setEvents([])
+			setEventsLoading(false)
+			setEventsError(null)
+			return
+		}
+
+		const controller = new AbortController()
+		setEventsLoading(true)
+		setEventsError(null)
+		void fetchDowntimeEvents(line.Id, new Date(fromMs), new Date(toMs), controller.signal)
+			.then(setEvents)
+			.catch((error: unknown) => {
+				if (!controller.signal.aborted) {
+					setEventsError(error instanceof Error ? error.message : 'Unable to load downtime events.')
+				}
+			})
+			.finally(() => {
+				if (!controller.signal.aborted) setEventsLoading(false)
+			})
+
+		return () => controller.abort()
+	}, [line.Id, fromMs, toMs, retryToken])
 
 	const rows: EventRow[] = fromMs !== null && toMs !== null && fromMs < toMs
 		? events
@@ -103,7 +132,7 @@ export function LineDetail({ line, events, onBack, getStatusClass }: LineDetailP
 					return (
 						startedAt >= fromMs &&
 						startedAt < toMs &&
-						(statusFilter === 'All' || event.Reason.toLowerCase() === statusFilter.toLowerCase()) &&
+						(statusFilter === 'All' || getProductionLineStatusDisplayName(event.Status).toLowerCase() === statusFilter.toLowerCase()) &&
 						(durationSeconds > 0 || startedAt === fromMs)
 					)
 				})
@@ -183,6 +212,15 @@ export function LineDetail({ line, events, onBack, getStatusClass }: LineDetailP
 
 			{!validRange ? (
 				<p className="line-detail-validation">Enter valid dates and 24-hour times (HH:mm), and make sure From is earlier than To.</p>
+			) : eventsLoading ? (
+				<p role="status">Loading downtime events…</p>
+			) : eventsError ? (
+				<div className="overview-api-error" role="alert">
+					<p>Could not load downtime events: {eventsError}</p>
+					<button type="button" onClick={() => setRetryToken((value) => value + 1)}>
+						Retry
+					</button>
+				</div>
 			) : (
 				<>
 					<div className="line-detail-summary">
@@ -210,7 +248,7 @@ export function LineDetail({ line, events, onBack, getStatusClass }: LineDetailP
 								{rows.map(({ event, durationSeconds }) => (
 									<tr key={event.Id}>
 										<td>
-											<span className={`line-detail-event ${getStatusClass(event.Reason)}`}>
+										<span className={`line-detail-event ${getStatusClass(getProductionLineStatusDisplayName(event.Status))}`}>
 												{event.SourceEventId}
 											</span>
 										</td>

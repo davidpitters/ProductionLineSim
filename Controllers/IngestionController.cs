@@ -1,7 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.OpenApi.Extensions;
 using ProductionLineSim.Classes;
-using ProductionLineSim.Enums;
 using ProductionLineSim.Services;
 
 namespace ProductionLineSim.Controllers
@@ -10,7 +8,7 @@ namespace ProductionLineSim.Controllers
     [Route("api/ingestion")]
     public class IngestionController(SqliteStore store, ILogger<IngestionController> logger) : ControllerBase
     {
-        private static readonly string[] ValidReasons = { ProductionLineStatus.Down.GetDisplayName(), ProductionLineStatus.Starved.GetDisplayName(), ProductionLineStatus.Blocked.GetDisplayName() };
+        private static readonly string[] ValidReasons = DowntimeReasonCatalog.AcceptedReasons.ToArray();
 
         [HttpGet]
         [Route("api/ingestion/health")]

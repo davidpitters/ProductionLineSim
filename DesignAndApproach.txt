@@ -48,11 +48,13 @@ I drew up a mock UI in paint for the Line detail screen, based on the informatio
 I continued to add in functionality to the front end without committing too much time to it. I went for a clean and easy to understand UI, with features that make sense such as a search bar and filters.
 To test my front end, I supplied it with mock data based on my classes. I used GPT-6 Luna to generate the mock data.
 
-Once I had the front end completed,
+Once I had the front end completed, I hooked in the API to the frontend.
 
-Overview
+Note: Because the app stores the line’s current status separately from its downtime events, and doesn’t synchronize them, it is possible to see a Line with a current status that differs from the most recent event in the downtime events.
+
+Lines Overview
 - Each production line has a record on the timeline which shows a compilation of segments over the range of time. A segment is composed of a start, and end, and the status. I assigned each status a unique color to be able to differentiate them. 
-- 
+- Clicking on a production line opens the line detail screen. Here lives a summary of the total downtime and event count for the selected time range. There is also a table with all of the events, and respective start time, duration, and reason. There is also a filter for event type (Down, Starved, Blocked).
 
 From my research on ZPI I found some additional key functional requirements:
 - OEE is a very important benchmark that needs to be reflected in the application.

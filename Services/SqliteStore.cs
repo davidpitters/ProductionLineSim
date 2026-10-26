@@ -56,7 +56,7 @@ namespace ProductionLineSim.Services
                 Id TEXT NOT NULL UNIQUE,
                 SourceEventId TEXT NOT NULL UNIQUE,
                 LineId TEXT NOT NULL REFERENCES ProductionLines(Id),
-                Reason TEXT NOT NULL CHECK (Reason IN ('Down','Starved','Blocked')),
+                Reason TEXT NOT NULL,
                 StartedAtUtc TEXT NOT NULL,
                 EndedAtUtc TEXT,
                 ReceivedAtUtc TEXT NOT NULL
@@ -65,7 +65,54 @@ namespace ProductionLineSim.Services
             UPDATE IngestionMessages SET Status = 'Pending', LastError = 'Recovered after application restart.' WHERE Status = 'Processing';
             """;
             await command.ExecuteNonQueryAsync(cancellationToken);
+            await MigrateDowntimeReasonsAsync(connection, cancellationToken);
             await SeedAsync(connection, cancellationToken);
+        }
+
+        private static async Task MigrateDowntimeReasonsAsync(
+            SqliteConnection connection,
+            CancellationToken cancellationToken)
+        {
+            await using (var versionCommand = connection.CreateCommand())
+            {
+                versionCommand.CommandText = "PRAGMA user_version;";
+                var version = Convert.ToInt32(await versionCommand.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
+                if (version >= 1) return;
+            }
+
+            await using var transaction =
+                (SqliteTransaction)await connection.BeginTransactionAsync(cancellationToken);
+            await using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                CREATE TABLE DowntimeEvents_New (
+                    KeyId INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Id TEXT NOT NULL UNIQUE,
+                    SourceEventId TEXT NOT NULL UNIQUE,
+                    LineId TEXT NOT NULL REFERENCES ProductionLines(Id),
+                    Reason TEXT NOT NULL,
+                    StartedAtUtc TEXT NOT NULL,
+                    EndedAtUtc TEXT,
+                    ReceivedAtUtc TEXT NOT NULL
+                );
+                INSERT INTO DowntimeEvents_New
+                    (KeyId, Id, SourceEventId, LineId, Reason, StartedAtUtc, EndedAtUtc, ReceivedAtUtc)
+                SELECT KeyId, Id, SourceEventId, LineId,
+                    CASE lower(Reason)
+                        WHEN 'down' THEN 'Mechanical Fault'
+                        WHEN 'starved' THEN 'Material Shortage'
+                        WHEN 'blocked' THEN 'Conveyor Jam'
+                        ELSE Reason
+                    END,
+                    StartedAtUtc, EndedAtUtc, ReceivedAtUtc
+                FROM DowntimeEvents;
+                DROP TABLE DowntimeEvents;
+                ALTER TABLE DowntimeEvents_New RENAME TO DowntimeEvents;
+                CREATE INDEX IX_DowntimeEvents_Line_Start ON DowntimeEvents(LineId, StartedAtUtc);
+                PRAGMA user_version = 1;
+                """;
+            await command.ExecuteNonQueryAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
         }
 
         private static async Task SeedAsync(SqliteConnection connection,CancellationToken cancellationToken)
@@ -97,6 +144,55 @@ namespace ProductionLineSim.Services
                     Name = "Assembly Line 03",
                     Status = ProductionLineStatus.Starved,
                     StatusUpdatedAtUtc = now.AddMinutes(-4)
+                },
+                new ProductionLine
+                {
+                    Id = "line-4",
+                    Name = "Labeling Line 04",
+                    Status = ProductionLineStatus.Running,
+                    StatusUpdatedAtUtc = now.AddMinutes(-9)
+                },
+                new ProductionLine
+                {
+                    Id = "line-5",
+                    Name = "Capping Line 05",
+                    Status = ProductionLineStatus.Blocked,
+                    StatusUpdatedAtUtc = now.AddMinutes(-6)
+                },
+                new ProductionLine
+                {
+                    Id = "line-6",
+                    Name = "Palletizing Line 06",
+                    Status = ProductionLineStatus.Running,
+                    StatusUpdatedAtUtc = now.AddMinutes(-14)
+                },
+                new ProductionLine
+                {
+                    Id = "line-7",
+                    Name = "Cartoning Line 07",
+                    Status = ProductionLineStatus.Down,
+                    StatusUpdatedAtUtc = now.AddMinutes(-11)
+                },
+                new ProductionLine
+                {
+                    Id = "line-8",
+                    Name = "Case Packing Line 08",
+                    Status = ProductionLineStatus.Running,
+                    StatusUpdatedAtUtc = now.AddMinutes(-7)
+                },
+                new ProductionLine
+                {
+                    Id = "line-9",
+                    Name = "Conveyor Line 09",
+                    Status = ProductionLineStatus.Starved,
+                    StatusUpdatedAtUtc = now.AddMinutes(-5)
+                },
+                new ProductionLine
+                {
+                    Id = "line-10",
+                    Name = "Inspection Line 10",
+                    Status = ProductionLineStatus.Running,
+                    StatusUpdatedAtUtc = now.AddMinutes(-3)
                 }
             };
 
@@ -120,46 +216,111 @@ namespace ProductionLineSim.Services
 
             var samples = new[]
             {
-                ("sample-l1-down", "line-1", EnumExtensions.GetDisplayName(ProductionLineStatus.Down),
+                ("sample-l1-down", "line-1", "Mechanical Fault",
                     now.AddHours(-5), now.AddHours(-4).AddMinutes(-42)),
-                ("sample-l1-starved", "line-1", EnumExtensions.GetDisplayName(ProductionLineStatus.Starved),
+                ("sample-l1-starved", "line-1", "Material Shortage",
                     now.AddHours(-3), now.AddHours(-2).AddMinutes(-35)),
-                ("sample-l1-blocked", "line-1", EnumExtensions.GetDisplayName(ProductionLineStatus.Blocked),
+                ("sample-l1-blocked", "line-1", "Conveyor Jam",
                     now.AddHours(-1), now.AddHours(-1).AddMinutes(18)),
-                ("sample-l2-down", "line-2", EnumExtensions.GetDisplayName(ProductionLineStatus.Down),
+                ("sample-l2-down", "line-2", "Sensor Fault",
                     now.AddHours(-2), now.AddHours(-1).AddMinutes(-20)),
-                ("sample-l2-blocked", "line-2", EnumExtensions.GetDisplayName(ProductionLineStatus.Blocked),
+                ("sample-l2-blocked", "line-2", "Downstream Blockage",
                     now.AddMinutes(-48), now.AddMinutes(-30)),
-                ("sample-l3-starved", "line-3", EnumExtensions.GetDisplayName(ProductionLineStatus.Starved),
+                ("sample-l3-starved", "line-3", "Cap Feeder Empty",
                     now.AddHours(-4), now.AddHours(-3).AddMinutes(-45)),
-                ("sample-l3-down", "line-3", EnumExtensions.GetDisplayName(ProductionLineStatus.Down),
+                ("sample-l3-down", "line-3", "Mechanical Fault",
                     now.AddMinutes(-25), (DateTimeOffset?)null)
             };
 
             foreach (var sample in samples)
             {
-                await using var command = connection.CreateCommand();
-                command.Transaction = transaction;
-                command.CommandText = """
-                    INSERT OR IGNORE INTO DowntimeEvents
-                        (Id, SourceEventId, LineId, Reason, StartedAtUtc, EndedAtUtc, ReceivedAtUtc)
-                    VALUES
-                        ($id, $source, $line, $reason, $start, $end, $received);
-                    """;
-                command.Parameters.AddWithValue("$id", GuidFrom(sample.Item1).ToString());
-                command.Parameters.AddWithValue("$source", sample.Item1);
-                command.Parameters.AddWithValue("$line", sample.Item2);
-                command.Parameters.AddWithValue("$reason", sample.Item3);
-                command.Parameters.AddWithValue("$start", Format(sample.Item4));
-                command.Parameters.AddWithValue(
-                    "$end",
-                    sample.Item5 is DateTimeOffset end ? Format(end) : DBNull.Value);
-                command.Parameters.AddWithValue("$received", Format(now));
+                await InsertSeedEventAsync(
+                    connection,
+                    transaction,
+                    sample.Item1,
+                    sample.Item2,
+                    sample.Item3,
+                    sample.Item4,
+                    sample.Item5,
+                    now,
+                    cancellationToken);
+            }
 
-                await command.ExecuteNonQueryAsync(cancellationToken);
+            var reasons = DowntimeReasonCatalog.Causes.ToArray();
+
+            for (var lineIndex = 0; lineIndex < lines.Length; lineIndex++)
+            {
+                var line = lines[lineIndex];
+                var targetEventCount = 8 + (lineIndex * 3 % 10);
+                var existingCount = await GetEventCountAsync(connection, transaction, line.Id, cancellationToken);
+                var slot = 1;
+
+                while (existingCount < targetEventCount)
+                {
+                    var sourceEventId = $"sample-{line.Id}-event-{slot:D2}";
+                    var startOffsetMinutes = 450 - (slot * 450 / targetEventCount);
+                    var startedAt = now.AddMinutes(-startOffsetMinutes);
+                    var durationMinutes = 6 + ((slot * 7 + lineIndex * 3) % 15);
+
+                    await InsertSeedEventAsync(
+                        connection,
+                        transaction,
+                        sourceEventId,
+                        line.Id,
+                        reasons[(slot + lineIndex) % reasons.Length],
+                        startedAt,
+                        startedAt.AddMinutes(durationMinutes),
+                        now,
+                        cancellationToken);
+
+                    existingCount = await GetEventCountAsync(connection, transaction, line.Id, cancellationToken);
+                    slot++;
+                }
             }
 
             await transaction.CommitAsync(cancellationToken);
+        }
+
+        private static async Task InsertSeedEventAsync(
+            SqliteConnection connection,
+            SqliteTransaction transaction,
+            string sourceEventId,
+            string lineId,
+            string reason,
+            DateTimeOffset startedAt,
+            DateTimeOffset? endedAt,
+            DateTimeOffset receivedAt,
+            CancellationToken cancellationToken)
+        {
+            await using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = """
+                INSERT OR IGNORE INTO DowntimeEvents
+                    (Id, SourceEventId, LineId, Reason, StartedAtUtc, EndedAtUtc, ReceivedAtUtc)
+                VALUES
+                    ($id, $source, $line, $reason, $start, $end, $received);
+                """;
+            command.Parameters.AddWithValue("$id", GuidFrom(sourceEventId).ToString());
+            command.Parameters.AddWithValue("$source", sourceEventId);
+            command.Parameters.AddWithValue("$line", lineId);
+            command.Parameters.AddWithValue("$reason", reason);
+            command.Parameters.AddWithValue("$start", Format(startedAt));
+            command.Parameters.AddWithValue("$end", endedAt is { } end ? Format(end) : DBNull.Value);
+            command.Parameters.AddWithValue("$received", Format(receivedAt));
+            await command.ExecuteNonQueryAsync(cancellationToken);
+        }
+
+        private static async Task<int> GetEventCountAsync(
+            SqliteConnection connection,
+            SqliteTransaction transaction,
+            string lineId,
+            CancellationToken cancellationToken)
+        {
+            await using var command = connection.CreateCommand();
+            command.Transaction = transaction;
+            command.CommandText = "SELECT COUNT(*) FROM DowntimeEvents WHERE LineId=$line;";
+            command.Parameters.AddWithValue("$line", lineId);
+            return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture);
         }
 
         /// <summary>Returns all production lines ordered by their identifiers.</summary>

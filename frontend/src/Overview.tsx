@@ -1,123 +1,8 @@
 import { useState, useEffect } from 'react'
 import * as Interfaces from './interfaces/interfaces'
+import { fetchDowntimeEvents, fetchProductionLines } from './api'
 import { StatusTimeline } from './StatusTimeline'
 import { LineDetail } from './LineDetail'
-
-const mockProductionLines: Interfaces.ProductionLine[] = [
-  {
-    Id: 'line-1',
-    Name: 'Filling Line 01',
-    Status: Interfaces.ProductionLineStatus.Running,
-    StatusUpdatedAtUtc: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
-  },
-  {
-    Id: 'line-2',
-    Name: 'Packaging Line 02',
-    Status: Interfaces.ProductionLineStatus.Down,
-    StatusUpdatedAtUtc: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
-  },
-  {
-    Id: 'line-3',
-    Name: 'Assembly Line 03',
-    Status: Interfaces.ProductionLineStatus.Starved,
-    StatusUpdatedAtUtc: new Date(Date.now() - 45 * 1000).toISOString(),
-  },
-  {
-    Id: 'line-4',
-    Name: 'Inspection Line 04',
-    Status: Interfaces.ProductionLineStatus.Running,
-    StatusUpdatedAtUtc: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
-  },
-  {
-    Id: 'line-5',
-    Name: 'Maintenance Line 05',
-    Status: Interfaces.ProductionLineStatus.Down,
-    StatusUpdatedAtUtc: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-  },
-  {
-    Id: 'line-6',
-    Name: 'Quality Control Line 06',
-    Status: Interfaces.ProductionLineStatus.Running,
-    StatusUpdatedAtUtc: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
-  }
-]
-
-const mockNow = Date.now()
-
-function makeMockEvent(
-  id: string,
-  reason: string,
-  startedMinutesAgo: number,
-  durationMinutes: number | null,
-): Interfaces.DowntimeEvent {
-  const startedAt = mockNow - startedMinutesAgo * 60_000
-  const endedAt =
-    durationMinutes === null
-      ? null
-      : startedAt + durationMinutes * 60_000
-
-  return {
-    Id: id,
-    SourceEventId: `mock-${id}`,
-    Reason: reason,
-    StartedAtUtc: new Date(startedAt).toISOString(),
-    EndedAtUtc: endedAt === null ? null : new Date(endedAt).toISOString(),
-    DurationSeconds:
-      durationMinutes === null ? 0 : durationMinutes * 60,
-    IsOngoing: endedAt === null,
-  }
-}
-
-const eventsByLine: Record<string, Interfaces.DowntimeEvent[]> = {
-  'line-1': [
-    makeMockEvent('event-101', 'Down', 465, 18),
-    makeMockEvent('event-102', 'Blocked', 446, 7),
-    makeMockEvent('event-103', 'Starved', 428, 12),
-    makeMockEvent('event-104', 'Down', 405, 24),
-    makeMockEvent('event-105', 'Starved', 378, 9),
-    makeMockEvent('event-106', 'Blocked', 354, 16),
-    makeMockEvent('event-107', 'Down', 330, 11),
-    makeMockEvent('event-108', 'Blocked', 306, 6),
-    makeMockEvent('event-109', 'Starved', 281, 14),
-    makeMockEvent('event-110', 'Down', 258, 21),
-    makeMockEvent('event-111', 'Blocked', 232, 8),
-    makeMockEvent('event-112', 'Starved', 207, 17),
-    makeMockEvent('event-113', 'Down', 183, 10),
-    makeMockEvent('event-114', 'Blocked', 158, 13),
-    makeMockEvent('event-115', 'Starved', 134, 7),
-    makeMockEvent('event-116', 'Down', 110, 19),
-    makeMockEvent('event-117', 'Blocked', 86, 5),
-    makeMockEvent('event-118', 'Starved', 63, 12),
-    makeMockEvent('event-119', 'Down', 42, 9),
-    makeMockEvent('event-120', 'Blocked', 24, 6),
-    makeMockEvent('event-121', 'Starved', 18, 4),
-    makeMockEvent('event-122', 'Down', 14, 7),
-    makeMockEvent('event-123', 'Blocked', 9, 3),
-    makeMockEvent('event-124', 'Starved', 5, 2),
-    makeMockEvent('event-125', 'Down', 1, null), // ongoing
-  ],
-  'line-2': [
-    makeMockEvent('event-201', 'Starved', 390, 25),
-    makeMockEvent('event-202', 'Down', 180, 40),
-    makeMockEvent('event-203', 'Down', 20, null), // ongoing
-  ],
-  'line-3': [
-    makeMockEvent('event-301', 'Blocked', 350, 30),
-    makeMockEvent('event-302', 'Starved', 120, 18),
-  ],
-  'line-4': [
-    makeMockEvent('event-401', 'Down', 300, 12),
-    makeMockEvent('event-402', 'Blocked', 100, 22),
-  ],
-  'line-5': [
-    makeMockEvent('event-501', 'Down', 440, 55),
-    makeMockEvent('event-502', 'Starved', 210, 30),
-  ],
-  'line-6': [
-    makeMockEvent('event-601', 'Starved', 280, 16),
-    makeMockEvent('event-602', 'Blocked', 60, 10),
-  ],
-}
 
 function formatDuration(totalSeconds: number): string {
   const hours = Math.floor(totalSeconds / 3600)
@@ -150,24 +35,24 @@ function getStatusTextClass(reason: string): string {
 }
 
 export function Overview(){
-    //const [productionLines, setProductionLines] = useState<Interfaces.ProductionLine[]>([])
-    const [productionLines, setProductionLines] =
-  useState<Interfaces.ProductionLine[]>(mockProductionLines)
+    const [productionLines, setProductionLines] = useState<Interfaces.ProductionLine[]>([])
+    const [eventsByLine, setEventsByLine] = useState<Record<string, Interfaces.DowntimeEvent[]>>({})
     const [selectedLine, setSelectedLine] = useState<Interfaces.ProductionLine | null>(null)
     const [highlightedLineId, setHighlightedLineId] = useState<string | null>(null)
     const [searchTerm, setSearchTerm] = useState('')
     const [now, setNow] = useState(Date.now())
+    const [timelineNow, setTimelineNow] = useState(Date.now())
+    const [isLoading, setIsLoading] = useState(true)
+    const [loadError, setLoadError] = useState<string | null>(null)
+    const [retryToken, setRetryToken] = useState(0)
+
+    const normalizedSearchTerm = searchTerm.trim().toLowerCase()
+    const visibleLines = normalizedSearchTerm
+      ? productionLines.filter((line) => line.Name.toLowerCase().includes(normalizedSearchTerm))
+      : productionLines
 
     function updateSearch(value: string) {
       setSearchTerm(value)
-      const normalizedSearchTerm = value.trim().toLowerCase()
-      setProductionLines(
-        normalizedSearchTerm
-          ? mockProductionLines.filter((line) =>
-            line.Name.toLowerCase().includes(normalizedSearchTerm)
-          )
-          : mockProductionLines
-      )
     }
 
     function getCurrentStatusSeconds(statusUpdatedAtUtc: string) {
@@ -179,6 +64,41 @@ export function Overview(){
         const timer = window.setInterval(() => setNow(Date.now()), 1000)
         return () => window.clearInterval(timer)
     }, [])
+
+    useEffect(() => {
+      const timer = window.setInterval(() => setTimelineNow(Date.now()), 60_000)
+      return () => window.clearInterval(timer)
+    }, [])
+
+    useEffect(() => {
+      const controller = new AbortController()
+
+      async function loadOverview() {
+        try {
+          setLoadError(null)
+          const lines = await fetchProductionLines(controller.signal)
+          setProductionLines(lines)
+
+          const to = new Date(timelineNow)
+          const from = new Date(timelineNow - 8 * 60 * 60 * 1000)
+          const lineEvents = await Promise.all(
+            lines.map((line) => fetchDowntimeEvents(line.Id, from, to, controller.signal)),
+          )
+          setEventsByLine(Object.fromEntries(
+            lines.map((line, index) => [line.Id, lineEvents[index]]),
+          ))
+        } catch (error) {
+          if (!controller.signal.aborted) {
+            setLoadError(error instanceof Error ? error.message : 'Unable to load production line data.')
+          }
+        } finally {
+          if (!controller.signal.aborted) setIsLoading(false)
+        }
+      }
+
+      void loadOverview()
+      return () => controller.abort()
+    }, [retryToken, timelineNow])
 
     return (
         <div className={`overview screen${selectedLine ? ' line-selected' : ''}`}>
@@ -214,7 +134,7 @@ export function Overview(){
                 </div>
                 <div className="production-line-list ">
                     <div className="production-line-list-inner scrollable">
-                        {productionLines.map((line) => (
+                        {visibleLines.map((line) => (
                           <div
                             key={line.Id}
                             className="production-line-list-item"
@@ -248,13 +168,24 @@ export function Overview(){
               {selectedLine ? (
                 <LineDetail
                   line={selectedLine}
-                  events={eventsByLine[selectedLine.Id] ?? []}
                   onBack={() => setSelectedLine(null)}
                   getStatusClass={getStatusClass}
                 />
+              ) : isLoading && productionLines.length === 0 ? (
+                <p role="status">Loading production lines…</p>
+              ) : loadError ? (
+                <div className="overview-api-error" role="alert">
+                  <p>Could not load production line data: {loadError}</p>
+                  <button type="button" onClick={() => {
+                    setIsLoading(true)
+                    setRetryToken((value) => value + 1)
+                  }}>
+                    Retry
+                  </button>
+                </div>
               ) : (
                 <StatusTimeline
-                  lines={productionLines}
+                  lines={visibleLines}
                   eventsByLine={eventsByLine}
                   highlightedLineId={highlightedLineId}
                 />
