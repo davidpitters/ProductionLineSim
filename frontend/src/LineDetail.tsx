@@ -13,6 +13,8 @@ interface EventRow {
 	durationSeconds: number
 }
 
+type StatusFilter = 'All' | 'Down' | 'Starved' | 'Blocked'
+
 const toLocalDateTimeInput = (value: Date): string => {
 	const local = new Date(value.getTime() - value.getTimezoneOffset() * 60_000)
 	return local.toISOString().slice(0, 16)
@@ -76,6 +78,7 @@ export function LineDetail({ line, events, onBack, getStatusClass }: LineDetailP
 		toLocalDateTimeInput(new Date(initialTo.getTime() - 8 * 60 * 60 * 1000)),
 	)
 	const [to, setTo] = useState(toLocalDateTimeInput(initialTo))
+	const [statusFilter, setStatusFilter] = useState<StatusFilter>('All')
 	const [now] = useState(Date.now())
 
 	const fromMs = parseLocalDateTime(from)
@@ -100,6 +103,7 @@ export function LineDetail({ line, events, onBack, getStatusClass }: LineDetailP
 					return (
 						startedAt >= fromMs &&
 						startedAt < toMs &&
+						(statusFilter === 'All' || event.Reason.toLowerCase() === statusFilter.toLowerCase()) &&
 						(durationSeconds > 0 || startedAt === fromMs)
 					)
 				})
@@ -120,6 +124,19 @@ export function LineDetail({ line, events, onBack, getStatusClass }: LineDetailP
 			</div>
 
 			<div className="line-detail-date-range">
+				<label className="line-detail-range-field">
+					Status
+					<select
+						aria-label="Filter events by status"
+						value={statusFilter}
+						onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
+					>
+						<option value="All">All</option>
+						<option value="Down">Down</option>
+						<option value="Starved">Starved</option>
+						<option value="Blocked">Blocked</option>
+					</select>
+				</label>
 				<div className="line-detail-range-field">
 					<span>From</span>
 					<div className="line-detail-date-time-inputs">

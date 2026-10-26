@@ -406,6 +406,17 @@
   text-align: left;
 }
 
+.line-detail-range-field select {
+  min-width: 130px;
+  min-height: 38px;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid #cbd1d8;
+  border-radius: 6px;
+  background: #fff;
+  color: #213547;
+  font: inherit;
+}
+
 .line-detail-date-time-inputs {
   display: flex;
   flex-wrap: wrap;
