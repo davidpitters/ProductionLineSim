@@ -61,6 +61,18 @@ namespace ProductionLineSim.Services
                 EndedAtUtc TEXT,
                 ReceivedAtUtc TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS DuplicateRecognitions (
+                KeyId INTEGER PRIMARY KEY AUTOINCREMENT,
+                Id TEXT NOT NULL UNIQUE,
+                SourceEventId TEXT NOT NULL,
+                LineId TEXT NOT NULL REFERENCES ProductionLines(Id),
+                Reason TEXT NOT NULL,
+                StartedAtUtc TEXT NOT NULL,
+                EndedAtUtc TEXT,
+                OriginalMessageId TEXT NOT NULL REFERENCES IngestionMessages(Id),
+                RecognizedAtUtc TEXT NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS IX_DuplicateRecognitions_RecognizedAt ON DuplicateRecognitions(RecognizedAtUtc);
             CREATE INDEX IF NOT EXISTS IX_DowntimeEvents_Line_Start ON DowntimeEvents(LineId, StartedAtUtc);
             UPDATE IngestionMessages SET Status = 'Pending', LastError = 'Recovered after application restart.' WHERE Status = 'Processing';
             """;
@@ -320,7 +332,47 @@ namespace ProductionLineSim.Services
                 }
             }
 
+            await ReconcileLineStatusesAsync(connection, transaction, lines, now, cancellationToken);
             await transaction.CommitAsync(cancellationToken);
+        }
+
+        private static async Task ReconcileLineStatusesAsync(
+            SqliteConnection connection,
+            SqliteTransaction transaction,
+            IEnumerable<ProductionLine> lines,
+            DateTimeOffset now,
+            CancellationToken cancellationToken)
+        {
+            foreach (var line in lines)
+            {
+                string? latestReason = null;
+                string? latestStartedAt = null;
+                string? latestEndedAt = null;
+                await using (var query = connection.CreateCommand())
+                {
+                    query.Transaction = transaction;
+                    query.CommandText = "SELECT Reason,StartedAtUtc,EndedAtUtc FROM DowntimeEvents WHERE LineId=$line ORDER BY StartedAtUtc DESC,KeyId DESC LIMIT 1;";
+                    query.Parameters.AddWithValue("$line", line.Id);
+                    await using var reader = await query.ExecuteReaderAsync(cancellationToken);
+                    if (await reader.ReadAsync(cancellationToken))
+                    {
+                        latestReason = reader.GetString(0);
+                        latestStartedAt = reader.GetString(1);
+                        latestEndedAt = reader.IsDBNull(2) ? null : reader.GetString(2);
+                    }
+                }
+
+                var isOngoing = latestReason is not null && latestEndedAt is null;
+                await using var update = connection.CreateCommand();
+                update.Transaction = transaction;
+                update.CommandText = "UPDATE ProductionLines SET Status=$status,StatusUpdatedAtUtc=$updated WHERE Id=$line;";
+                update.Parameters.AddWithValue("$status", isOngoing
+                    ? DowntimeReasonCatalog.GetImpactStatus(latestReason!).GetDisplayName()
+                    : ProductionLineStatus.Running.GetDisplayName());
+                update.Parameters.AddWithValue("$updated", isOngoing ? latestStartedAt! : latestEndedAt ?? latestStartedAt ?? Format(now));
+                update.Parameters.AddWithValue("$line", line.Id);
+                await update.ExecuteNonQueryAsync(cancellationToken);
+            }
         }
 
         private static async Task InsertSeedEventAsync(
@@ -400,6 +452,37 @@ namespace ProductionLineSim.Services
             return Convert.ToInt32(await command.ExecuteScalarAsync(cancellationToken), CultureInfo.InvariantCulture) == 1;
         }
 
+        /// <summary>Resolves all ongoing events for a line and restores its status to Running.</summary>
+        public async Task<DateTimeOffset?> ResolveCurrentEventAsync(string lineId, CancellationToken cancellationToken)
+        {
+            await using var connection = OpenConnection();
+            await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+            var resolvedAt = DateTimeOffset.UtcNow;
+
+            await using (var closeEvents = connection.CreateCommand())
+            {
+                closeEvents.Transaction = (SqliteTransaction)transaction;
+                closeEvents.CommandText = "UPDATE DowntimeEvents SET EndedAtUtc=CASE WHEN StartedAtUtc > $now THEN StartedAtUtc ELSE $now END WHERE LineId=$line AND EndedAtUtc IS NULL;";
+                closeEvents.Parameters.AddWithValue("$now", Format(resolvedAt));
+                closeEvents.Parameters.AddWithValue("$line", lineId);
+                if (await closeEvents.ExecuteNonQueryAsync(cancellationToken) == 0)
+                    return null;
+            }
+
+            await using (var updateLine = connection.CreateCommand())
+            {
+                updateLine.Transaction = (SqliteTransaction)transaction;
+                updateLine.CommandText = "UPDATE ProductionLines SET Status=$status,StatusUpdatedAtUtc=$updated WHERE Id=$line;";
+                updateLine.Parameters.AddWithValue("$status", ProductionLineStatus.Running.GetDisplayName());
+                updateLine.Parameters.AddWithValue("$updated", Format(resolvedAt));
+                updateLine.Parameters.AddWithValue("$line", lineId);
+                await updateLine.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+            return resolvedAt;
+        }
+
         /// <summary>Loads events overlapping the requested interval and calculates the downtime report.</summary>
         public async Task<DowntimeReport> GetDowntimeAsync(string lineId, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken)
         {
@@ -433,14 +516,27 @@ namespace ProductionLineSim.Services
             var entries = new List<MachineEventLogEntry>();
             await using var connection = OpenConnection();
             await using var command = connection.CreateCommand();
-            command.CommandText = """
-                SELECT e.Id, e.SourceEventId, e.LineId, l.Name, e.Reason,
-                       e.StartedAtUtc, e.EndedAtUtc, e.ReceivedAtUtc
-                FROM DowntimeEvents e
-                INNER JOIN ProductionLines l ON l.Id = e.LineId
-                ORDER BY e.StartedAtUtc DESC, e.KeyId DESC
-                LIMIT $limit OFFSET $offset;
-                """;
+                 command.CommandText = """
+                  SELECT Id, SourceEventId, LineId, LineName, Reason, StartedAtUtc,
+                      EndedAtUtc, ReceivedAtUtc, IsDuplicate, OriginalMessageId, RecognizedAtUtc
+                  FROM (
+                      SELECT e.Id, e.SourceEventId, e.LineId, l.Name AS LineName, e.Reason,
+                          e.StartedAtUtc, e.EndedAtUtc, e.ReceivedAtUtc,
+                          0 AS IsDuplicate, NULL AS OriginalMessageId, NULL AS RecognizedAtUtc,
+                          e.StartedAtUtc AS SortAtUtc, e.KeyId AS SortKey
+                      FROM DowntimeEvents e
+                      INNER JOIN ProductionLines l ON l.Id = e.LineId
+                      UNION ALL
+                      SELECT d.Id, d.SourceEventId, d.LineId, l.Name AS LineName, d.Reason,
+                          d.StartedAtUtc, d.EndedAtUtc, d.RecognizedAtUtc AS ReceivedAtUtc,
+                          1 AS IsDuplicate, d.OriginalMessageId, d.RecognizedAtUtc,
+                          d.RecognizedAtUtc AS SortAtUtc, d.KeyId AS SortKey
+                      FROM DuplicateRecognitions d
+                      INNER JOIN ProductionLines l ON l.Id = d.LineId
+                  )
+                  ORDER BY SortAtUtc DESC, SortKey DESC
+                  LIMIT $limit OFFSET $offset;
+                  """;
             command.Parameters.AddWithValue("$limit", limit + 1);
             command.Parameters.AddWithValue("$offset", offset);
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
@@ -458,6 +554,9 @@ namespace ProductionLineSim.Services
                     StartedAtUtc = Parse(reader.GetString(5)),
                     EndedAtUtc = reader.IsDBNull(6) ? null : Parse(reader.GetString(6)),
                     ReceivedAtUtc = Parse(reader.GetString(7)),
+                    IsDuplicate = reader.GetInt32(8) == 1,
+                    OriginalMessageId = reader.IsDBNull(9) ? null : Guid.Parse(reader.GetString(9)),
+                    RecognizedAtUtc = reader.IsDBNull(10) ? null : Parse(reader.GetString(10)),
                 });
             }
 
@@ -535,9 +634,27 @@ namespace ProductionLineSim.Services
                 if (prior is null) throw;
                 if (!CryptographicOperations.FixedTimeEquals(Convert.FromHexString(prior.Value.Hash), Convert.FromHexString(hash)))
                     return Tuple.Create<MachineEventResponse?, bool>(null, true);
+                await RecordDuplicateRecognitionAsync(normalized, prior.Value.Id, cancellationToken);
                 logger.LogInformation("Detected duplicate ingestion for source event {SourceEventId}", normalized.SourceEventId);
                 return Tuple.Create<MachineEventResponse?, bool>(new MachineEventResponse { MessageId = prior.Value.Id, SourceEventId = normalized.SourceEventId, Status = Enum.Parse<MessageStatus>(prior.Value.Status), IsDuplicate = true }, false);
             }
+        }
+
+        /// <summary>Persists an audit row when an exact replay returns an existing message.</summary>
+        private async Task RecordDuplicateRecognitionAsync(MachineEventRequest request, Guid originalMessageId, CancellationToken cancellationToken)
+        {
+            await using var connection = OpenConnection();
+            await using var command = connection.CreateCommand();
+            command.CommandText = "INSERT INTO DuplicateRecognitions(Id,SourceEventId,LineId,Reason,StartedAtUtc,EndedAtUtc,OriginalMessageId,RecognizedAtUtc) VALUES($id,$source,$line,$reason,$started,$ended,$message,$recognized);";
+            command.Parameters.AddWithValue("$id", Guid.NewGuid().ToString());
+            command.Parameters.AddWithValue("$source", request.SourceEventId);
+            command.Parameters.AddWithValue("$line", request.LineId);
+            command.Parameters.AddWithValue("$reason", request.Reason);
+            command.Parameters.AddWithValue("$started", Format(request.StartedAtUtc));
+            command.Parameters.AddWithValue("$ended", request.EndedAtUtc.HasValue ? Format(request.EndedAtUtc.Value) : DBNull.Value);
+            command.Parameters.AddWithValue("$message", originalMessageId.ToString());
+            command.Parameters.AddWithValue("$recognized", Format(DateTimeOffset.UtcNow));
+            await command.ExecuteNonQueryAsync(cancellationToken);
         }
 
         /// <summary>Finds an existing queue message by its source event identifier.</summary>
@@ -666,6 +783,15 @@ namespace ProductionLineSim.Services
             await using var finalConnection = OpenConnection();
             await using var finalTransaction = finalConnection.BeginTransaction();
             var processedAt = DateTimeOffset.UtcNow;
+            await using (var closeOngoing = finalConnection.CreateCommand())
+            {
+                closeOngoing.Transaction = finalTransaction;
+                closeOngoing.CommandText = "UPDATE DowntimeEvents SET EndedAtUtc=$end WHERE LineId=$line AND EndedAtUtc IS NULL AND StartedAtUtc <= $start;";
+                closeOngoing.Parameters.AddWithValue("$end", Format(payload.StartedAtUtc));
+                closeOngoing.Parameters.AddWithValue("$line", payload.LineId);
+                closeOngoing.Parameters.AddWithValue("$start", Format(payload.StartedAtUtc));
+                await closeOngoing.ExecuteNonQueryAsync(cancellationToken);
+            }
             await using (var insert = finalConnection.CreateCommand())
             {
                 insert.Transaction = finalTransaction;

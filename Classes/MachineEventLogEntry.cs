@@ -11,5 +11,8 @@ namespace ProductionLineSim.Classes
         public DateTimeOffset StartedAtUtc { get; set; }
         public DateTimeOffset? EndedAtUtc { get; set; }
         public DateTimeOffset ReceivedAtUtc { get; set; }
+        public bool IsDuplicate { get; set; }
+        public Guid? OriginalMessageId { get; set; }
+        public DateTimeOffset? RecognizedAtUtc { get; set; }
     }
 }

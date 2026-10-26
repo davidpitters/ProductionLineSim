@@ -202,6 +202,16 @@ export function Overview(){
                 <LineDetail
                   line={selectedLine}
                   onBack={() => setSelectedLine(null)}
+                  onLineResolved={(statusUpdatedAtUtc) => {
+                    const updatedLine = {
+                      ...selectedLine,
+                      Status: Interfaces.ProductionLineStatus.Running,
+                      StatusUpdatedAtUtc: statusUpdatedAtUtc,
+                    }
+                    setSelectedLine(updatedLine)
+                    setProductionLines((current) => current.map((line) => line.Id === updatedLine.Id ? updatedLine : line))
+                    setRetryToken((value) => value + 1)
+                  }}
                   getStatusClass={getStatusClass}
                 />
               ) : isLoading && productionLines.length === 0 ? (

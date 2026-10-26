@@ -4,6 +4,7 @@
 .ingestion-idempotency-button:disabled { cursor: not-allowed; opacity: 0.55; }
 .ingestion-idempotency-demo small { color: #718096; font-size: 0.72rem; text-align: left; }
 .ingestion-idempotency-demo p { margin: 0.25rem 0 0; color: #167349; font-size: 0.78rem; text-align: left; }
+.ingestion-idempotency-demo p.is-warning { color: #a15c00; }
 #root {
   width: 100%;
   min-height: 100vh;
@@ -659,25 +660,37 @@
   gap: 1rem;
 }
 
-.line-detail-refresh {
+.line-detail-actions {
   position: absolute;
   top: 50%;
   right: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  transform: translateY(-50%);
+}
+
+.line-detail-refresh,
+.line-detail-resolve {
   min-height: 38px;
   padding: 0.45rem 0.75rem;
   border: 1px solid #cbd1d8;
   background: #fff;
   color: #213547;
   font-size: 0.85rem;
-  transform: translateY(-50%);
 }
 
-.line-detail-refresh:hover:not(:disabled) {
+.line-detail-refresh:hover:not(:disabled),
+.line-detail-resolve:hover:not(:disabled) {
   border-color: #2876d2;
   background: #edf5ff;
 }
 
-.line-detail-refresh:disabled {
+.line-detail-resolve { border-color: #168653; background: #168653; color: #fff; font-weight: 700; }
+.line-detail-resolve:hover:not(:disabled) { border-color: #116c42; background: #116c42; }
+.line-detail-refresh:disabled,
+.line-detail-resolve:disabled {
   cursor: wait;
   opacity: 0.65;
 }
@@ -804,4 +817,11 @@
 .line-detail-empty {
   padding: 1rem;
   text-align: center;
+}
+
+@media (max-width: 680px) {
+  .line-detail-header { justify-content: flex-start; padding-bottom: 0.25rem; }
+  .line-detail-header h1 { margin: 0; padding-right: 0; text-align: left; }
+  .line-detail-actions { position: static; width: 100%; justify-content: flex-start; transform: none; }
+  .line-detail-actions button { flex: 1 1 auto; }
 }

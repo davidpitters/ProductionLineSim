@@ -53,6 +53,9 @@ To demonstrate the ingestion queue subsystem, I instructed Luna with this instru
 "I need to integrate the Ingestion API to the front end. I need a UI to simulate a new machine event request for a line spawning, it getting validated and accepted by the ingestion controller, and then processed by the queue processor, and then being able to see it on the dashboard. Add another screen ( After Lines and before Performance ) called Ingestion to display this. I should be able to trigger the event spawning by a button. Match the existing ui styles"
 After, I also wanted a way to simulate multiple machine event requests being submitted.
 "On the ingestion screen, add a "running ingestion" demo that i can start/stop that randomly picks a line and new machine event request to submit every given interval (options of 1 sec, 5 sec, 10 seconds). It also picks randomly if it should be a success, transient, or permanent failure"
+I also wanted Logs to show, indicating Machine events, Ingestion Messages, and Permanent Failures. Idempotency checks are also logged to give the user knowledge of repeated events with the same payload. 
+In my testing, I noticed that ongoing events should have their end time set once a new machine request has been processed, so I added that in as well.
+
 
 
 Note: Because the app stores the line’s current status separately from its downtime events, and doesn’t synchronize them, it is possible to see a Line with a current status that differs from the most recent event in the downtime events.

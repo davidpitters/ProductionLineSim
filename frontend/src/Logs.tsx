@@ -92,12 +92,15 @@ export function Logs() {
         ) : (
           <div className="logs-table-scroll">
             {activeTab === 'events' && eventPage && <table className="logs-table">
-              <thead><tr><th>Started</th><th>Line</th><th>Status</th><th>Reason</th><th>Duration</th><th>Ended</th><th>Source Event ID</th></tr></thead>
+              <thead><tr><th>Started</th><th>Line</th><th>Status</th><th>Reason</th><th>Duration</th><th>Ended</th><th>Source Event ID</th><th>Recorded / Original Message</th></tr></thead>
               <tbody>{eventPage.items.map((entry) => <tr key={entry.id}>
                 <td>{formatDateTime(entry.startedAtUtc)}</td><td>{entry.lineName}</td>
-                <td><span className={`logs-status status-${entry.status.toLowerCase()}`}>{entry.status}</span></td>
+                <td><span className={`logs-status ${entry.isDuplicate ? 'status-duplicate' : `status-${entry.status.toLowerCase()}`}`}>{entry.isDuplicate ? 'Duplicate recognized' : entry.status}</span></td>
                 <td>{entry.reason}</td><td>{formatEventDuration(entry)}</td><td>{formatDateTime(entry.endedAtUtc)}</td>
                 <td><code title={entry.sourceEventId}>{entry.sourceEventId}</code></td>
+                <td className="logs-detail-cell">{entry.isDuplicate
+                  ? <>{formatDateTime(entry.recognizedAtUtc)}<br /><small>Original message: <code title={entry.originalMessageId ?? ''}>{entry.originalMessageId}</code></small></>
+                  : formatDateTime(entry.receivedAtUtc)}</td>
               </tr>)}</tbody>
             </table>}
             {activeTab === 'ingestion' && ingestionPage && <IngestionTable page={ingestionPage} />}

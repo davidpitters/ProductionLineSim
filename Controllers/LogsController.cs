@@ -6,6 +6,7 @@ namespace ProductionLineSim.Controllers
 {
     [ApiController]
     [Route("api/logs")]
+    [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public class LogsController(SqliteStore store) : ControllerBase
     {
         private const int DefaultLimit = 50;

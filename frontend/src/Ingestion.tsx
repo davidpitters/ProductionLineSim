@@ -478,7 +478,7 @@ export function Ingestion() {
                   {isReplaying ? 'Replaying same request…' : 'Replay same event (idempotency demo)'}
                 </button>
                 <small>This resends the last event with the exact same source event ID and payload.</small>
-                {idempotencyResult && <p role="status">{idempotencyResult}</p>}
+                {idempotencyResult && <p className={idempotencyResult.startsWith('Duplicate recognized:') ? 'is-warning' : ''} role="status">{idempotencyResult}</p>}
               </div>
               {lifecycle === 'processed' && <div className="ingestion-success-note"><strong>{selectedLine?.Name ?? 'Production line'} updated</strong><span>{reason} was recorded. Open Lines to view the updated timeline and status.</span></div>}
             </section>

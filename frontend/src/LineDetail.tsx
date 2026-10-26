@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { getProductionLineStatusDisplayName, type DowntimeEvent, type ProductionLine } from './interfaces/interfaces'
-import { fetchDowntimeEvents } from './api'
+import { getProductionLineStatusDisplayName, ProductionLineStatus, type DowntimeEvent, type ProductionLine } from './interfaces/interfaces'
+import { fetchDowntimeEvents, resolveCurrentEvent } from './api'
 
 interface LineDetailProps {
 	line: ProductionLine
 	onBack: () => void
+	onLineResolved: (statusUpdatedAtUtc: string) => void
 	getStatusClass: (reason: string) => string
 }
 
@@ -72,7 +73,7 @@ const formatDuration = (totalSeconds: number): string => {
 		.join(':')
 }
 
-export function LineDetail({ line, onBack, getStatusClass }: LineDetailProps) {
+export function LineDetail({ line, onBack, onLineResolved, getStatusClass }: LineDetailProps) {
 	const initialTo = new Date()
 	const [from, setFrom] = useState(
 		toLocalDateTimeInput(new Date(initialTo.getTime() - 8 * 60 * 60 * 1000)),
@@ -84,6 +85,8 @@ export function LineDetail({ line, onBack, getStatusClass }: LineDetailProps) {
 	const [eventsError, setEventsError] = useState<string | null>(null)
 	const [retryToken, setRetryToken] = useState(0)
 	const [now, setNow] = useState(Date.now())
+	const [isResolving, setIsResolving] = useState(false)
+	const [resolveError, setResolveError] = useState<string | null>(null)
 
 	const fromMs = parseLocalDateTime(from)
 	const toMs = parseLocalDateTime(to)
@@ -141,6 +144,22 @@ export function LineDetail({ line, onBack, getStatusClass }: LineDetailProps) {
 
 	const totalDowntimeSeconds = rows.reduce((total, row) => total + row.durationSeconds, 0)
 
+	async function handleResolveCurrentEvent() {
+		if (isResolving) return
+		setIsResolving(true)
+		setResolveError(null)
+		try {
+			const result = await resolveCurrentEvent(line.Id)
+			setNow(Date.now())
+			setRetryToken((value) => value + 1)
+			onLineResolved(result.statusUpdatedAtUtc)
+		} catch (error) {
+			setResolveError(error instanceof Error ? error.message : 'Unable to resolve the current event.')
+		} finally {
+			setIsResolving(false)
+		}
+	}
+
 	return (
 		<section className="line-detail">
 			<div className="line-detail-back-container">
@@ -150,18 +169,29 @@ export function LineDetail({ line, onBack, getStatusClass }: LineDetailProps) {
 			</div>
 			<div className="line-detail-header">
 				<h1>{line.Name}</h1>
-				<button
-					type="button"
-					className="line-detail-refresh"
-					disabled={eventsLoading}
-					onClick={() => {
-						setNow(Date.now())
-						setRetryToken((value) => value + 1)
-					}}
-				>
-					{eventsLoading ? 'Refreshing…' : '↻ Refresh'}
-				</button>
+				<div className="line-detail-actions">
+					<button
+						type="button"
+						className="line-detail-resolve"
+						disabled={line.Status === ProductionLineStatus.Running || isResolving}
+						onClick={() => void handleResolveCurrentEvent()}
+					>
+						{isResolving ? 'Resolving…' : 'Resolve current event'}
+					</button>
+					<button
+						type="button"
+						className="line-detail-refresh"
+						disabled={eventsLoading}
+						onClick={() => {
+							setNow(Date.now())
+							setRetryToken((value) => value + 1)
+						}}
+					>
+						{eventsLoading ? 'Refreshing…' : '↻ Refresh'}
+					</button>
+				</div>
 			</div>
+			{resolveError && <div className="overview-api-error" role="alert"><p>{resolveError}</p></div>}
 
 			<div className="line-detail-date-range">
 				<label className="line-detail-range-field">

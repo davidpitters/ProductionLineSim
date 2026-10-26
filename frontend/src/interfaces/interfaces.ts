@@ -156,6 +156,9 @@ export interface MachineEventLogEntry {
   startedAtUtc: string
   endedAtUtc: string | null
   receivedAtUtc: string
+  isDuplicate: boolean
+  originalMessageId: string | null
+  recognizedAtUtc: string | null
 }
 
 export interface IngestionLogEntry {

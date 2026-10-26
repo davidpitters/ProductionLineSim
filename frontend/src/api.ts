@@ -73,7 +73,7 @@ function mapDowntimeEvent(event: ApiDowntimeEvent): DowntimeEvent {
 }
 
 async function requestJson<T>(url: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(url, { signal, headers: { Accept: 'application/json' } })
+  const response = await fetch(url, { signal, cache: 'no-store', headers: { Accept: 'application/json' } })
   if (!response.ok) {
     const body = await response.json().catch(() => null) as
       | { error?: string; title?: string; detail?: string }
@@ -117,6 +117,22 @@ export async function fetchDowntimeEvents(
     signal,
   )
   return report.events.map(mapDowntimeEvent)
+}
+
+export async function resolveCurrentEvent(lineId: string, signal?: AbortSignal): Promise<{ statusUpdatedAtUtc: string }> {
+  const response = await fetch(`/api/productionlines/${encodeURIComponent(lineId)}/resolve-current-event`, {
+    method: 'POST',
+    signal,
+    cache: 'no-store',
+    headers: { Accept: 'application/json' },
+  })
+  if (!response.ok) {
+    const body = await response.json().catch(() => null) as
+      | { error?: string; title?: string; detail?: string }
+      | null
+    throw new Error(body?.error ?? body?.detail ?? body?.title ?? `API request failed (${response.status})`)
+  }
+  return response.json() as Promise<{ statusUpdatedAtUtc: string }>
 }
 
 export async function fetchIngestionReasons(signal?: AbortSignal): Promise<IngestionReason[]> {
