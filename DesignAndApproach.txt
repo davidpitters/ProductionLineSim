@@ -35,8 +35,7 @@ Next, I set up my services. The services are comprised of an background service 
 
 
 Next, I set up my front end. To expedite the process of class creation I provided GPT-6 Luna with my Models and instructed it to give me Typescript equivalents. I wanted 4 screens that are navigated by a sidebar:
-- Overview
-- Events (future)
+- Lines
 - Performance (future)
 - Targets (future)
 I incrementally pieced the front end together, going back and forth between writing my react components and styling them with css.
@@ -57,12 +56,13 @@ Lines Overview
 - Clicking on a production line opens the line detail screen. Here lives a summary of the total downtime and event count for the selected time range. There is also a table with all of the events, and respective start time, duration, and reason. There is also a filter for event type (Down, Starved, Blocked).
 
 From my research on ZPI I found some additional key functional requirements:
-- OEE is a very important benchmark that needs to be reflected in the application.
 - The software should be able to run on a local area network without needing propriety hardware or PLC changes
 
 How I would expand on this project in the future would be to do the following:
 - Transform generic classes into entities and DTOs with the proper naming convention *Entity.cs and *DTO.cs
-- Implement the rest of the screens (Events, Performance, Targets)
+- Implement the rest of the screens (Performance, Targets)
+- OEE is a very important benchmark that needs to be reflected in the application.
+- Setup a test suite using xUnit to perform unit and integration tests.
 
 The greatest challenge for me was to be able to properly understand what classes to create. Taking the functional requirements and translating them into the classes and data transfer objects that fulfill the requirements while not being overengineered.
 
