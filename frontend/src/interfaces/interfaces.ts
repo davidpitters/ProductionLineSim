@@ -138,3 +138,33 @@ export interface ReasonBreakdown {
   EventCount: number;
   TotalDowntimeSeconds: number;
 }
+
+export interface LogPage<T> {
+  items: ReadonlyArray<T>
+  limit: number
+  offset: number
+  hasMore: boolean
+}
+
+export interface MachineEventLogEntry {
+  id: string
+  sourceEventId: string
+  lineId: string
+  lineName: string
+  reason: string
+  status: string
+  startedAtUtc: string
+  endedAtUtc: string | null
+  receivedAtUtc: string
+}
+
+export interface IngestionLogEntry {
+  messageId: string
+  sourceEventId: string
+  status: string
+  attemptCount: number
+  createdAtUtc: string
+  lastAttemptedAtUtc: string | null
+  lastError: string | null
+  processedAtUtc: string | null
+}

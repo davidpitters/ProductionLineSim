@@ -2,8 +2,11 @@ import {
   ProductionLineStatus,
   type DowntimeEvent,
   type IngestionHealth,
+  type IngestionLogEntry,
   type IngestionMessage,
   type IngestionReason,
+  type LogPage,
+  type MachineEventLogEntry,
   type MachineEventRequest,
   type MachineEventResponse,
   type ProductionLine,
@@ -135,4 +138,31 @@ export async function submitMachineEvent(
 
 export async function fetchIngestionMessage(messageId: string, signal?: AbortSignal): Promise<IngestionMessage> {
   return requestJson<IngestionMessage>(`/api/ingestion/messages/${encodeURIComponent(messageId)}`, signal)
+}
+
+const logPageQuery = (limit: number, offset: number) =>
+  new URLSearchParams({ limit: String(limit), offset: String(offset) })
+
+export async function fetchMachineEventLogs(
+  limit: number,
+  offset: number,
+  signal?: AbortSignal,
+): Promise<LogPage<MachineEventLogEntry>> {
+  return requestJson<LogPage<MachineEventLogEntry>>(`/api/logs/events?${logPageQuery(limit, offset)}`, signal)
+}
+
+export async function fetchIngestionLogs(
+  limit: number,
+  offset: number,
+  signal?: AbortSignal,
+): Promise<LogPage<IngestionLogEntry>> {
+  return requestJson<LogPage<IngestionLogEntry>>(`/api/logs/ingestion-messages?${logPageQuery(limit, offset)}`, signal)
+}
+
+export async function fetchFailureLogs(
+  limit: number,
+  offset: number,
+  signal?: AbortSignal,
+): Promise<LogPage<IngestionLogEntry>> {
+  return requestJson<LogPage<IngestionLogEntry>>(`/api/logs/failures?${logPageQuery(limit, offset)}`, signal)
 }

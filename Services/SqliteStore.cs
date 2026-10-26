@@ -427,6 +427,80 @@ namespace ProductionLineSim.Services
             return DowntimeCalculator.Calculate(lineId, from, to, events, DateTimeOffset.UtcNow);
         }
 
+        /// <summary>Returns a bounded, newest-first page of processed machine event records.</summary>
+        public async Task<LogPage<MachineEventLogEntry>> GetMachineEventLogsAsync(int limit, int offset, CancellationToken cancellationToken)
+        {
+            var entries = new List<MachineEventLogEntry>();
+            await using var connection = OpenConnection();
+            await using var command = connection.CreateCommand();
+            command.CommandText = """
+                SELECT e.Id, e.SourceEventId, e.LineId, l.Name, e.Reason,
+                       e.StartedAtUtc, e.EndedAtUtc, e.ReceivedAtUtc
+                FROM DowntimeEvents e
+                INNER JOIN ProductionLines l ON l.Id = e.LineId
+                ORDER BY e.StartedAtUtc DESC, e.KeyId DESC
+                LIMIT $limit OFFSET $offset;
+                """;
+            command.Parameters.AddWithValue("$limit", limit + 1);
+            command.Parameters.AddWithValue("$offset", offset);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                var reason = reader.GetString(4);
+                entries.Add(new MachineEventLogEntry
+                {
+                    Id = Guid.Parse(reader.GetString(0)),
+                    SourceEventId = reader.GetString(1),
+                    LineId = reader.GetString(2),
+                    LineName = reader.GetString(3),
+                    Reason = reason,
+                    Status = DowntimeReasonCatalog.GetImpactStatus(reason).GetDisplayName(),
+                    StartedAtUtc = Parse(reader.GetString(5)),
+                    EndedAtUtc = reader.IsDBNull(6) ? null : Parse(reader.GetString(6)),
+                    ReceivedAtUtc = Parse(reader.GetString(7)),
+                });
+            }
+
+            return CreateLogPage(entries, limit, offset);
+        }
+
+        /// <summary>Returns a bounded, newest-first page of queue messages, optionally restricted to failures.</summary>
+        public async Task<LogPage<IngestionLogEntry>> GetIngestionLogsAsync(int limit, int offset, bool failuresOnly, CancellationToken cancellationToken)
+        {
+            var messages = new List<IngestionLogEntry>();
+            await using var connection = OpenConnection();
+            await using var command = connection.CreateCommand();
+            command.CommandText = failuresOnly
+                ? "SELECT Id,SourceEventId,Status,AttemptCount,CreatedAtUtc,LastAttemptedAtUtc,LastError,ProcessedAtUtc FROM IngestionMessages WHERE Status='Failed' ORDER BY COALESCE(LastAttemptedAtUtc,CreatedAtUtc) DESC, KeyId DESC LIMIT $limit OFFSET $offset;"
+                : "SELECT Id,SourceEventId,Status,AttemptCount,CreatedAtUtc,LastAttemptedAtUtc,LastError,ProcessedAtUtc FROM IngestionMessages ORDER BY CreatedAtUtc DESC, KeyId DESC LIMIT $limit OFFSET $offset;";
+            command.Parameters.AddWithValue("$limit", limit + 1);
+            command.Parameters.AddWithValue("$offset", offset);
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+            while (await reader.ReadAsync(cancellationToken))
+            {
+                var message = ReadMessage(reader);
+                messages.Add(new IngestionLogEntry
+                {
+                    MessageId = message.MessageId,
+                    SourceEventId = message.SourceEventId,
+                    Status = message.Status,
+                    AttemptCount = message.AttemptCount,
+                    CreatedAtUtc = message.CreatedAtUtc,
+                    LastAttemptedAtUtc = message.LastAttemptedAtUtc,
+                    LastError = message.LastError,
+                    ProcessedAtUtc = message.ProcessedAtUtc,
+                });
+            }
+            return CreateLogPage(messages, limit, offset);
+        }
+
+        private static LogPage<T> CreateLogPage<T>(List<T> entries, int limit, int offset)
+        {
+            var hasMore = entries.Count > limit;
+            if (hasMore) entries.RemoveAt(entries.Count - 1);
+            return new LogPage<T> { Items = entries, Limit = limit, Offset = offset, HasMore = hasMore };
+        }
+
         public async Task<Tuple<MachineEventResponse?, bool>> EnqueueAsync(MachineEventRequest request, string? failureMode, CancellationToken cancellationToken)
         {
             var normalized = new MachineEventRequest
