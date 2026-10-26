@@ -33,6 +33,28 @@ const wait = (milliseconds: number, signal: AbortSignal) => new Promise<void>((r
 
 const formatTime = (value: string | null) => value ? new Date(value).toLocaleString() : '—'
 
+type DemoFailureMode = 'none' | 'transient' | 'permanent'
+type DemoInterval = 1 | 5 | 10
+
+interface DemoActivity {
+  sourceEventId: string
+  messageId: string | null
+  lineName: string
+  reason: string
+  outcome: DemoFailureMode
+  status: string
+  attemptCount: number
+  createdAt: string
+  error: string | null
+}
+
+const chooseDemoOutcome = (): DemoFailureMode => {
+  const value = Math.random()
+  return value < 0.6 ? 'none' : value < 0.8 ? 'transient' : 'permanent'
+}
+
+const pickRandom = <T,>(items: readonly T[]): T => items[Math.floor(Math.random() * items.length)]
+
 export function Ingestion() {
   const [lines, setLines] = useState<ProductionLine[]>([])
   const [reasons, setReasons] = useState<IngestionReason[]>([])
@@ -47,7 +69,12 @@ export function Ingestion() {
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [refreshToken, setRefreshToken] = useState(0)
+  const [demoRunning, setDemoRunning] = useState(false)
+  const [demoInterval, setDemoInterval] = useState<DemoInterval>(5)
+  const [demoActivity, setDemoActivity] = useState<DemoActivity[]>([])
   const abortRef = useRef<AbortController | null>(null)
+  const demoTrackedMessageIdsRef = useRef(new Set<string>())
+  const pollingMessageIdsRef = useRef(new Set<string>())
 
   useEffect(() => {
     const controller = new AbortController()
@@ -77,6 +104,90 @@ export function Ingestion() {
   }, [refreshToken])
 
   useEffect(() => () => abortRef.current?.abort(), [])
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      for (const messageId of demoTrackedMessageIdsRef.current) {
+        if (pollingMessageIdsRef.current.has(messageId)) continue
+        pollingMessageIdsRef.current.add(messageId)
+        void fetchIngestionMessage(messageId)
+          .then((updated) => {
+            if (updated.status === 'Processed' || updated.status === 'Failed') {
+              demoTrackedMessageIdsRef.current.delete(messageId)
+            }
+            setDemoActivity((current) => current.map((activity) => activity.messageId === messageId
+              ? { ...activity, status: updated.status, attemptCount: updated.attemptCount, error: updated.lastError }
+              : activity))
+            void fetchIngestionHealth().then(setHealth).catch(() => undefined)
+          })
+          .catch((pollError: unknown) => {
+            setDemoActivity((current) => current.map((activity) => activity.messageId === messageId
+              ? { ...activity, error: pollError instanceof Error ? pollError.message : 'Unable to refresh message status.' }
+              : activity))
+          })
+          .finally(() => pollingMessageIdsRef.current.delete(messageId))
+      }
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [])
+
+  useEffect(() => {
+    if (!demoRunning || !lines.length || !reasons.length) return
+    let cancelled = false
+    let timer: number | undefined
+
+    const submitDemoEvent = async () => {
+      const line = pickRandom(lines)
+      const selectedReason = pickRandom(reasons)
+      const outcome = chooseDemoOutcome()
+      const eventId = createSourceEventId()
+      const activity: DemoActivity = {
+        sourceEventId: eventId,
+        messageId: null,
+        lineName: line.Name,
+        reason: selectedReason.reason,
+        outcome,
+        status: 'Submitting',
+        attemptCount: 0,
+        createdAt: new Date().toISOString(),
+        error: null,
+      }
+      setDemoActivity((current) => [activity, ...current].slice(0, 10))
+
+      try {
+        const response = await submitMachineEvent({
+          SourceEventId: eventId,
+          LineId: line.Id,
+          Reason: selectedReason.reason,
+          StartedAtUtc: new Date().toISOString(),
+          EndedAtUtc: null,
+        }, outcome)
+        demoTrackedMessageIdsRef.current.add(response.messageId)
+        setDemoActivity((current) => current.map((item) => item.sourceEventId === eventId
+          ? { ...item, messageId: response.messageId, status: 'Pending' }
+          : item))
+        void fetchIngestionHealth().then(setHealth).catch(() => undefined)
+      } catch (submitError) {
+        setDemoActivity((current) => current.map((item) => item.sourceEventId === eventId
+          ? { ...item, status: 'Rejected', error: submitError instanceof Error ? submitError.message : 'Submission failed.' }
+          : item))
+      }
+    }
+
+    const scheduleNext = () => {
+      timer = window.setTimeout(async () => {
+        if (cancelled) return
+        await submitDemoEvent()
+        if (!cancelled) scheduleNext()
+      }, demoInterval * 1000)
+    }
+
+    scheduleNext()
+    return () => {
+      cancelled = true
+      if (timer !== undefined) window.clearTimeout(timer)
+    }
+  }, [demoInterval, demoRunning, lines, reasons])
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -180,6 +291,73 @@ export function Ingestion() {
 
       {error && <div className="ingestion-alert" role="alert">{error}</div>}
       {isLoading ? <p role="status">Loading lines and ingestion service…</p> : (
+        <>
+        <section className="ingestion-card ingestion-demo-card" aria-labelledby="running-demo-title">
+          <div className="ingestion-demo-header">
+            <div className="ingestion-demo-title">
+              <span className={`ingestion-demo-indicator${demoRunning ? ' is-running' : ''}`} aria-hidden="true" />
+              <div>
+                <p className="ingestion-eyebrow">AUTOMATED TEST STREAM</p>
+                <h2 id="running-demo-title">Running ingestion</h2>
+                <p>Generate randomized machine events continuously to exercise the queue.</p>
+              </div>
+            </div>
+            <div className="ingestion-demo-controls">
+              <label>
+                Submit every
+                <select
+                  value={demoInterval}
+                  disabled={demoRunning}
+                  onChange={(event) => setDemoInterval(Number(event.target.value) as DemoInterval)}
+                >
+                  <option value={1}>1 second</option>
+                  <option value={5}>5 seconds</option>
+                  <option value={10}>10 seconds</option>
+                </select>
+              </label>
+              {demoRunning ? (
+                <button type="button" className="ingestion-demo-stop" onClick={() => setDemoRunning(false)}>
+                  <span aria-hidden="true">■</span> Stop demo
+                </button>
+              ) : (
+                <button type="button" className="ingestion-demo-start" disabled={!lines.length || !reasons.length} onClick={() => setDemoRunning(true)}>
+                  <span aria-hidden="true">▶</span> Start demo
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="ingestion-demo-summary">
+            <span className="ingestion-demo-running-state"><i className={demoRunning ? 'is-running' : ''} />{demoRunning ? `Running · next event in ${demoInterval}s` : 'Stopped'}</span>
+            <span>Outcomes: <strong>60% success</strong> · 20% transient · 20% permanent</span>
+            <span>Ongoing events · {demoActivity.length} of 10 shown</span>
+          </div>
+          {demoActivity.length > 0 ? (
+            <div className="ingestion-demo-activity-wrap">
+              <div className="ingestion-demo-activity-heading"><h3>Recent demo events</h3><span>Latest 10</span></div>
+              <div className="ingestion-demo-activity-list">
+                {demoActivity.map((item) => (
+                  <article className="ingestion-demo-activity" key={item.sourceEventId}>
+                    <div className="ingestion-demo-event-main">
+                      <span className={`ingestion-queue-pill status-text-${item.status.toLowerCase()}`}>{item.status}</span>
+                      <strong>{item.lineName}</strong>
+                      <span>{item.reason}</span>
+                      <span className={`ingestion-demo-outcome outcome-${item.outcome}`}>{item.outcome === 'none' ? 'Success path' : `${item.outcome} failure`}</span>
+                    </div>
+                    <div className="ingestion-demo-event-detail">
+                      <code title={item.sourceEventId}>{item.sourceEventId}</code>
+                      <span>{item.attemptCount} {item.attemptCount === 1 ? 'attempt' : 'attempts'}</span>
+                      <time dateTime={item.createdAt}>{formatTime(item.createdAt)}</time>
+                    </div>
+                    {item.error && <p className={`ingestion-demo-event-error${item.status === 'Pending' ? ' is-retry' : ''}`}>{item.error}</p>}
+                  </article>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="ingestion-demo-empty">No demo events yet. Start the demo to submit the first randomized event after the selected interval.</p>
+          )}
+        </section>
+
         <div className="ingestion-layout">
           <section className="ingestion-card ingestion-form-card">
             <div className="ingestion-card-heading">
@@ -278,6 +456,7 @@ export function Ingestion() {
             </section>
           </div>
         </div>
+        </>
       )}
     </div>
   )

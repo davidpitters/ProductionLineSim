@@ -104,7 +104,7 @@ export function StatusTimeline(
   return (
     <>
     <section className="status-timeline">
-      <h2>Line Status — last 8 hours</h2>
+      <h2>Line Status</h2>
 
       <div className="timeline-axis">
         <div className="timeline-line-name" />

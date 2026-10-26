@@ -20,7 +20,9 @@ function App() {
       </nav>
       <main className="main-content">
         {tabIndex === 0 && <Overview />}
-        {tabIndex === 1 && <Ingestion />}
+        <div hidden={tabIndex !== 1}>
+          <Ingestion />
+        </div>
         {tabIndex === 2 && <Performance />}
         {tabIndex === 3 && <Targets />}
       </main>
