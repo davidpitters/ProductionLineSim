@@ -88,3 +88,35 @@ How I would expand on this project in the future would be to do the following:
 The greatest challenge for me was to be able to properly understand what classes to create. Taking the functional requirements and translating them into the classes and data transfer objects that fulfill the requirements while not being overengineered.
 
 I used AI to boilerplate the projects and help me come up with properties that I would need for my classes, but when it came to development I chose to build the application from the ground up. The reason for this is that I have used AI to generate the "v1" of some apps in my own personal projects before, and it always comes with major drawbacks such as file bloat and unreadable code. I find that creating my classes, services, api controllers, and front end components myself keep the file count minimal and I am able to steer the code towards not just how I want it to work, but how I would like it to look as well. This ensures that in the future, anyone looking at the code will be able to quickly understand what its purpose is and where to make any desired changes. I think of it like cooking a meal versus ordering the same meal from Uber Eats. It can be the same exact thing in front of you, but when you do it yourself you know the ins and outs of it.
+
+Decisions and Trade offs
+Idempotency / conflict handling
+
+Used SourceEventId + a hash of the normalized payload as the idempotency key.
+Relied on a DB unique constraint and caught the constraint violation, instead of check-then-insert — avoids a race between concurrent duplicate submissions.
+Same ID + same payload = replay, return 200 and log it. Same ID + different payload = conflict, 409. Only exact-ID collisions are covered; no semantic dedup across different IDs.
+Queue processing
+
+Single-threaded background worker, one pending message at a time, polling on an interval.
+Chose this over concurrent workers because the "only one ongoing event per line" rule would otherwise need per-line locking — not worth the complexity here.
+On crash, anything stuck in Processing resets to Pending on restart. Worker catches exceptions per loop so one bad message doesn't kill the whole service.
+Trade-off: throughput is capped by sequential processing — fine for this scope, wouldn't scale as-is.
+Downtime calculation
+
+Half-open interval math so events touching a report boundary don't get double-counted across adjacent windows.
+Clip each event's duration to the overlap with the requested range; ongoing events get bounded by whichever is earlier, the report end or "now".
+Reject inverted date ranges up front.
+Why SQLite / raw SQL over EF Core
+
+No separate DB server needed, easy to reset for a demo.
+Wanted direct control over the unique-constraint-catch pattern and transaction boundaries for the idempotency logic — raw SQL made that easier to reason about precisely.
+Trade-off: more boilerplate, no compile-time query checking.
+Known gaps, said plainly
+
+Conflicts only go to console logs right now, nothing persisted/queryable — I'd add a table for it, same pattern as the existing duplicate-recognition audit log.
+Classes mix entity and DTO concerns — would split into *Entity/*DTO with real mapping.
+Line status is stored separately from its downtime events and not synced, so they can drift apart.
+Performance/Targets screens and OEE aren't built — OEE is the natural next metric given the data already captured.
+Testing approach
+
+Focused tests on the logic with real risk — date-range math, idempotency/conflict/sequential processing — over simple CRUD, since that's where bugs actually hide.

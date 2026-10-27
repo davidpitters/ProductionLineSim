@@ -4,6 +4,7 @@ Prerequisite: Use .NET 8 and Node 14.21.3 or greater.
 1. In one terminal, run dotnet watch run --launch-profile http from the repository root.
 2. In another terminal, run npm install and npm run dev from the /frontend directory. Vite proxies /api to the API's HTTPS port
 3. Navigate to the localhost port that the application is running on
+Note: To reset the database, delete the production-line-sim.db file in the repository root.
 
 Data model and assumptions
 ---
