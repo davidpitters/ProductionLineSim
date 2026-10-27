@@ -16,21 +16,26 @@ interface EventRow {
 
 type StatusFilter = 'All' | 'Down' | 'Starved' | 'Blocked'
 
+/** Formats a Date as a local datetime input value without shifting its wall-clock time. */
 const toLocalDateTimeInput = (value: Date): string => {
 	const local = new Date(value.getTime() - value.getTimezoneOffset() * 60_000)
 	return local.toISOString().slice(0, 16)
 }
 
+/** Extracts the date portion from a local datetime input value. */
 const getDatePart = (value: string): string => value.slice(0, 10)
 
+/** Extracts the time portion from a local datetime input value. */
 const getTimePart = (value: string): string => value.slice(11, 16)
 
+/** Replaces one part of a local datetime input while preserving the other part. */
 const updateDateTimePart = (current: string, part: 'date' | 'time', value: string): string => {
 	const date = part === 'date' ? value : getDatePart(current)
 	const time = part === 'time' ? value : getTimePart(current)
 	return `${date}T${time}`
 }
 
+/** Parses and validates a local YYYY-MM-DDTHH:mm value, rejecting normalized invalid dates. */
 const parseLocalDateTime = (value: string): number | null => {
 	const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value)
 	if (!match) return null
@@ -52,6 +57,7 @@ const parseLocalDateTime = (value: string): number | null => {
 	return date.getTime()
 }
 
+/** Formats an API timestamp for display in the user's locale. */
 const formatDateTime = (value: string): string =>
 	new Date(value).toLocaleString([], {
 		year: 'numeric',
@@ -62,6 +68,7 @@ const formatDateTime = (value: string): string =>
 		hourCycle: 'h23',
 	})
 
+/** Formats seconds as a zero-padded hours:minutes:seconds duration. */
 const formatDuration = (totalSeconds: number): string => {
 	const seconds = Math.max(0, Math.floor(totalSeconds))
 	const hours = Math.floor(seconds / 3600)
@@ -73,6 +80,7 @@ const formatDuration = (totalSeconds: number): string => {
 		.join(':')
 }
 
+/** Displays a line's filtered downtime history and actions for refreshing or resolving it. */
 export function LineDetail({ line, onBack, onLineResolved, getStatusClass }: LineDetailProps) {
 	const initialTo = new Date()
 	const [from, setFrom] = useState(
@@ -93,6 +101,7 @@ export function LineDetail({ line, onBack, onLineResolved, getStatusClass }: Lin
 	const validRange = fromMs !== null && toMs !== null && fromMs < toMs
 
 	useEffect(() => {
+		// Skip invalid ranges and abort the previous request when the line, range, or retry changes.
 		if (fromMs === null || toMs === null || fromMs >= toMs) {
 			setEvents([])
 			setEventsLoading(false)
@@ -117,6 +126,7 @@ export function LineDetail({ line, onBack, onLineResolved, getStatusClass }: Lin
 		return () => controller.abort()
 	}, [line.Id, fromMs, toMs, retryToken])
 
+	// Clip durations to the selected range and current time; only include events that start in the range.
 	const rows: EventRow[] = fromMs !== null && toMs !== null && fromMs < toMs
 		? events
 				.map((event) => {
@@ -144,6 +154,7 @@ export function LineDetail({ line, onBack, onLineResolved, getStatusClass }: Lin
 
 	const totalDowntimeSeconds = rows.reduce((total, row) => total + row.durationSeconds, 0)
 
+	/** Resolves the open event, then refreshes both local history and the parent line status. */
 	async function handleResolveCurrentEvent() {
 		if (isResolving) return
 		setIsResolving(true)

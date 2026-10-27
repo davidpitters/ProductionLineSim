@@ -1,4 +1,4 @@
-Before beginning any development, the very first thing that I did was structure my approach to the project. I devised a schedule to adhere to, based on how many days I had until my on site interview. I had from Tuesday until Tuesday, so I dedicated 3 days to development, with a code freeze after Friday. Saturday and Sunday were dedicated to testing core functionality and edge cases, and bug fixes. Monday was dedicated to reviewing and brainstorming future capabilities outside of the scope of this project.
+Before beginning any development, the very first thing that I did was structure my approach to the project. I devised a schedule to adhere to, based on how many days I had until my on site interview. I had from Tuesday until Tuesday, so I dedicated 3 days to development, with a code freeze after Sunday. Monday was designated to testing core functionality and edge cases, and bug fixes, as well as dedicated to reviewing and brainstorming future capabilities outside of the scope of this project.
 
 After coming up with my schedule, I re-read over the supplied take home project documentation. From this I gathered key functional requirements and drafted the architecture that I wanted. I composed it of 5 parts:
 Events - Simulated events that mimic the data that is being trasmitted from the machines on the production line.
@@ -56,6 +56,18 @@ After, I also wanted a way to simulate multiple machine event requests being sub
 I also wanted Logs to show, indicating Machine events, Ingestion Messages, and Permanent Failures. Idempotency checks are also logged to give the user knowledge of repeated events with the same payload. 
 In my testing, I noticed that ongoing events should have their end time set once a new machine request has been processed, so I added that in as well.
 
+For automated testing, I created an xUnit project that tests the critical functionality points of the application. This includes:
+- Downtime Calculator Tests
+    - Only events in the date range count
+    - Events that overlap the time range only count the time within the selected date range
+    - The calculated downtime report status and source event ID matches the source data
+    - Created events are marked as ongoing
+    - To and From filters have validation preventing impossible date ranges
+- Ingestion Queue Tests
+    - Identical messages are detected, return a 200 OK and are logged
+    - Messages with the same source id but different payload return a 409 conflict
+    - Pending Messages are processed one at a time
+    - Resolving a current event sets it back to Running
 
 
 Note: Because the app stores the line’s current status separately from its downtime events, and doesn’t synchronize them, it is possible to see a Line with a current status that differs from the most recent event in the downtime events.

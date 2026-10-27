@@ -39,6 +39,7 @@ public static class DowntimeReasonCatalog
     public static IReadOnlyCollection<string> AcceptedReasons =>
         CauseStatuses.Keys.Concat(LegacyStatuses.Keys).ToArray();
 
+    /// <summary>Returns the line impact for a supported current or legacy downtime reason.</summary>
     public static ProductionLineStatus GetImpactStatus(string reason)
     {
         if (CauseStatuses.TryGetValue(reason, out var status) || LegacyStatuses.TryGetValue(reason, out status))
@@ -49,6 +50,7 @@ public static class DowntimeReasonCatalog
         throw new ArgumentException($"Unsupported downtime reason '{reason}'.", nameof(reason));
     }
 
+    /// <summary>Maps legacy status labels to their corresponding descriptive downtime causes.</summary>
     public static string MigrateLegacyReason(string reason) => reason.ToLowerInvariant() switch
     {
         "down" => "Mechanical Fault",

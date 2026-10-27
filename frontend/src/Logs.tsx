@@ -5,12 +5,14 @@ import type { IngestionLogEntry, LogPage, MachineEventLogEntry } from './interfa
 type LogTab = 'events' | 'ingestion' | 'failures'
 const PAGE_SIZE = 50
 
+/** Formats an optional timestamp consistently across the log tables. */
 const formatDateTime = (value: string | null) => value
   ? new Date(value).toLocaleString([], {
     year: 'numeric', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23',
   })
   : '—'
 
+/** Shows ongoing events explicitly or returns the completed event's elapsed duration. */
 const formatEventDuration = (event: MachineEventLogEntry) => {
   if (!event.endedAtUtc) return 'Ongoing'
   const seconds = Math.max(0, Math.floor((Date.parse(event.endedAtUtc) - Date.parse(event.startedAtUtc)) / 1000))
@@ -19,6 +21,7 @@ const formatEventDuration = (event: MachineEventLogEntry) => {
   return `${minutes}m ${remainder}s`
 }
 
+/** Displays paged machine-event, ingestion-message, and failure logs. */
 export function Logs() {
   const [activeTab, setActiveTab] = useState<LogTab>('events')
   const [offset, setOffset] = useState(0)
@@ -30,10 +33,12 @@ export function Logs() {
   const [refreshToken, setRefreshToken] = useState(0)
 
   useEffect(() => {
+    // Abort the previous page request when the tab, page, or refresh token changes.
     const controller = new AbortController()
     setLoading(true)
     setError(null)
 
+    /** Fetches only the selected log category and cancels stale requests on tab/page changes. */
     const load = async () => {
       try {
         if (activeTab === 'events') {
@@ -57,6 +62,7 @@ export function Logs() {
   }, [activeTab, offset, refreshToken])
 
   const page = activeTab === 'events' ? eventPage : activeTab === 'ingestion' ? ingestionPage : failurePage
+  /** Changes log category and resets pagination to its first page. */
   const startTab = (tab: LogTab) => {
     setActiveTab(tab)
     setOffset(0)
@@ -121,6 +127,7 @@ export function Logs() {
   )
 }
 
+/** Renders the columns specific to ingestion queue messages. */
 function IngestionTable({ page }: { page: LogPage<IngestionLogEntry> }) {
   return <table className="logs-table">
     <thead><tr><th>Created</th><th>Source Event ID</th><th>Status</th><th>Attempts</th><th>Last Attempt</th><th>Processed</th><th>Details</th></tr></thead>
@@ -133,6 +140,7 @@ function IngestionTable({ page }: { page: LogPage<IngestionLogEntry> }) {
   </table>
 }
 
+/** Renders the reduced details relevant to failed queue messages. */
 function FailuresTable({ page }: { page: LogPage<IngestionLogEntry> }) {
   return <table className="logs-table">
     <thead><tr><th>Failed At</th><th>Source Event ID</th><th>Attempts</th><th>Failure Details</th></tr></thead>

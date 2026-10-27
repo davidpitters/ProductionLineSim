@@ -4,11 +4,13 @@ import { fetchDowntimeEvents, fetchProductionLines } from './api'
 import { StatusTimeline } from './StatusTimeline'
 import { LineDetail } from './LineDetail'
 
+/** Converts a Date to a datetime-local string in the user's local timezone. */
 const toLocalDateTimeInput = (value: Date): string => {
   const local = new Date(value.getTime() - value.getTimezoneOffset() * 60_000)
   return local.toISOString().slice(0, 16)
 }
 
+/** Parses a local datetime input and rejects invalid calendar dates and times. */
 const parseLocalDateTime = (value: string): number | null => {
   const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value)
   if (!match) return null
@@ -22,6 +24,7 @@ const parseLocalDateTime = (value: string): number | null => {
   return date.getTime()
 }
 
+/** Formats elapsed seconds as a zero-padded hours:minutes:seconds value. */
 function formatDuration(totalSeconds: number): string {
   const hours = Math.floor(totalSeconds / 3600)
   const minutes = Math.floor((totalSeconds % 3600) / 60)
@@ -32,6 +35,7 @@ function formatDuration(totalSeconds: number): string {
     .join(':')
 }
 
+/** Maps a status label to its timeline badge CSS class. */
 function getStatusClass(reason: string): string {
   switch (reason.toLowerCase()) {
     case 'running': return 'status-running'
@@ -42,6 +46,7 @@ function getStatusClass(reason: string): string {
   }
 }
 
+/** Maps a status label to its text-color CSS class. */
 function getStatusTextClass(reason: string): string {
   switch (reason.toLowerCase()) {
     case 'running': return 'status-running-text'
@@ -52,6 +57,7 @@ function getStatusTextClass(reason: string): string {
   }
 }
 
+/** Owns line selection, time-range data loading, and the status timeline view. */
 export function Overview(){
     const [productionLines, setProductionLines] = useState<Interfaces.ProductionLine[]>([])
     const [eventsByLine, setEventsByLine] = useState<Record<string, Interfaces.DowntimeEvent[]>>({})
@@ -79,16 +85,19 @@ export function Overview(){
       ? productionLines.filter((line) => line.Name.toLowerCase().includes(normalizedSearchTerm))
       : productionLines
 
+    /** Updates the line-list search query. */
     function updateSearch(value: string) {
       setSearchTerm(value)
     }
 
+    /** Calculates how long the line has held its current status. */
     function getCurrentStatusSeconds(statusUpdatedAtUtc: string) {
         const statusUpdatedAt = new Date(statusUpdatedAtUtc).getTime()
         return Math.floor((now - statusUpdatedAt) / 1000)
     }
 
     useEffect(() => {
+      // Keep displayed status durations moving even when no API data changes.
         const timer = window.setInterval(() => setNow(Date.now()), 1000)
         return () => window.clearInterval(timer)
     }, [])
@@ -97,6 +106,7 @@ export function Overview(){
       const controller = new AbortController()
 
       if (!validTimelineRange || timelineFromMs === null || timelineToMs === null) {
+        // Do not show stale timeline data while the user is correcting an invalid range.
         setEventsByLine({})
         setIsLoading(false)
         return () => controller.abort()
@@ -105,6 +115,7 @@ export function Overview(){
       const fromTimestamp = timelineFromMs
       const toTimestamp = timelineToMs
 
+      /** Loads lines and their downtime windows, ignoring results after cancellation. */
       async function loadOverview() {
         try {
           setIsLoading(true)
@@ -114,6 +125,7 @@ export function Overview(){
 
           const from = new Date(fromTimestamp)
           const to = new Date(toTimestamp)
+          // Load each line's overlapping events together so the timeline stays in sync with its range.
           const lineEvents = await Promise.all(
             lines.map((line) => fetchDowntimeEvents(line.Id, from, to, controller.signal)),
           )
@@ -198,6 +210,7 @@ export function Overview(){
                 </div>
             </div>}
             <div className="right-content">
+              {/* Resolution callback updates the selected detail and overview state together. */}
               {selectedLine ? (
                 <LineDetail
                   line={selectedLine}

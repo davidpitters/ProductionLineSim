@@ -6,6 +6,7 @@ import { Targets } from './Targets'
 import { Logs } from './Logs'
 import './App.css'
 
+/** Renders the dashboard shell and the page selected in the sidebar. */
 function App() {
   const [tabIndex, setTabIndex] = useState(0)
   return (
@@ -22,6 +23,7 @@ function App() {
       </nav>
       <main className="main-content">
         {tabIndex === 0 && <Overview />}
+        {/* Keep ingestion mounted while hidden so an active demo stream retains its state. */}
         <div hidden={tabIndex !== 1}>
           <Ingestion />
         </div>

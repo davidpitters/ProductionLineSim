@@ -41,7 +41,9 @@ const statusByName: Record<string, ProductionLineStatus> = {
   down: ProductionLineStatus.Down,
 }
 
+/** Converts an API line, accepting either numeric or display-name enum values. */
 function mapProductionLine(line: ApiProductionLine): ProductionLine {
+  // The API may serialize the enum as either its display name or numeric value.
   const status =
     typeof line.status === 'string'
       ? statusByName[line.status.toLowerCase()]
@@ -59,6 +61,7 @@ function mapProductionLine(line: ApiProductionLine): ProductionLine {
   }
 }
 
+/** Converts the API's downtime event shape to the frontend model. */
 function mapDowntimeEvent(event: ApiDowntimeEvent): DowntimeEvent {
   return {
     Id: event.id,
@@ -72,7 +75,9 @@ function mapDowntimeEvent(event: ApiDowntimeEvent): DowntimeEvent {
   }
 }
 
+/** Fetches JSON without caching and turns API error payloads into readable errors. */
 async function requestJson<T>(url: string, signal?: AbortSignal): Promise<T> {
+  // Avoid stale log/status data after recent writes.
   const response = await fetch(url, { signal, cache: 'no-store', headers: { Accept: 'application/json' } })
   if (!response.ok) {
     const body = await response.json().catch(() => null) as
@@ -84,6 +89,7 @@ async function requestJson<T>(url: string, signal?: AbortSignal): Promise<T> {
   return response.json() as Promise<T>
 }
 
+/** Sends a JSON POST and reports API failures as exceptions. */
 async function sendJson<T>(url: string, body: unknown, signal?: AbortSignal): Promise<T> {
   const response = await fetch(url, {
     method: 'POST',
@@ -100,11 +106,13 @@ async function sendJson<T>(url: string, body: unknown, signal?: AbortSignal): Pr
   return response.json() as Promise<T>
 }
 
+/** Loads production lines and maps their wire representation to frontend models. */
 export async function fetchProductionLines(signal?: AbortSignal): Promise<ProductionLine[]> {
   const lines = await requestJson<ApiProductionLine[]>('/api/productionlines', signal)
   return lines.map(mapProductionLine)
 }
 
+/** Loads one line's downtime events that overlap the requested time range. */
 export async function fetchDowntimeEvents(
   lineId: string,
   from: Date,
@@ -119,6 +127,7 @@ export async function fetchDowntimeEvents(
   return report.events.map(mapDowntimeEvent)
 }
 
+/** Resolves the line's open event and returns the timestamp of its status update. */
 export async function resolveCurrentEvent(lineId: string, signal?: AbortSignal): Promise<{ statusUpdatedAtUtc: string }> {
   const response = await fetch(`/api/productionlines/${encodeURIComponent(lineId)}/resolve-current-event`, {
     method: 'POST',
@@ -135,14 +144,17 @@ export async function resolveCurrentEvent(lineId: string, signal?: AbortSignal):
   return response.json() as Promise<{ statusUpdatedAtUtc: string }>
 }
 
+/** Loads accepted event reasons together with their resulting line statuses. */
 export async function fetchIngestionReasons(signal?: AbortSignal): Promise<IngestionReason[]> {
   return requestJson<IngestionReason[]>('/api/ingestion/reasons', signal)
 }
 
+/** Loads the ingestion queue counts and recent message summary. */
 export async function fetchIngestionHealth(signal?: AbortSignal): Promise<IngestionHealth> {
   return requestJson<IngestionHealth>('/api/ingestion/health', signal)
 }
 
+/** Submits a machine event, optionally requesting a simulated queue failure. */
 export async function submitMachineEvent(
   request: MachineEventRequest,
   failureMode: 'transient' | 'permanent' | 'none',
@@ -152,13 +164,16 @@ export async function submitMachineEvent(
   return sendJson<MachineEventResponse>(`/api/ingestion/submit${query}`, request, signal)
 }
 
+/** Retrieves the latest state of a queued ingestion message. */
 export async function fetchIngestionMessage(messageId: string, signal?: AbortSignal): Promise<IngestionMessage> {
   return requestJson<IngestionMessage>(`/api/ingestion/messages/${encodeURIComponent(messageId)}`, signal)
 }
 
+/** Builds the common pagination query used by log endpoints. */
 const logPageQuery = (limit: number, offset: number) =>
   new URLSearchParams({ limit: String(limit), offset: String(offset) })
 
+/** Loads one page of processed and duplicate-recognition machine events. */
 export async function fetchMachineEventLogs(
   limit: number,
   offset: number,
@@ -167,6 +182,7 @@ export async function fetchMachineEventLogs(
   return requestJson<LogPage<MachineEventLogEntry>>(`/api/logs/events?${logPageQuery(limit, offset)}`, signal)
 }
 
+/** Loads one page of ingestion queue messages. */
 export async function fetchIngestionLogs(
   limit: number,
   offset: number,
@@ -175,6 +191,7 @@ export async function fetchIngestionLogs(
   return requestJson<LogPage<IngestionLogEntry>>(`/api/logs/ingestion-messages?${logPageQuery(limit, offset)}`, signal)
 }
 
+/** Loads one page containing failed ingestion messages only. */
 export async function fetchFailureLogs(
   limit: number,
   offset: number,

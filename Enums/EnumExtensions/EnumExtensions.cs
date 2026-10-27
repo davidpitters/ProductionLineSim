@@ -5,6 +5,7 @@ namespace ProductionLineSim.Enums.EnumExtensions
 {
     public static class EnumExtensions
     {
+        /// <summary>Returns the display label declared on an enum member, or its enum name.</summary>
         public static string GetDisplayName(this Enum value)
         {
             var member = value.GetType().GetMember(value.ToString()).FirstOrDefault();
@@ -15,6 +16,7 @@ namespace ProductionLineSim.Enums.EnumExtensions
                 ?? value.ToString();
         }
 
+        /// <summary>Parses a production-line status from its declared display label.</summary>
         public static ProductionLineStatus ParseDisplayName(string displayName)
         {
             foreach (var field in typeof(ProductionLineStatus).GetFields())

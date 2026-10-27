@@ -34,12 +34,14 @@ export const MessageStatusDisplayNames: Record<MessageStatus, string> = {
   [MessageStatus.Failed]: "Failed",
 };
 
+/** Returns the display label associated with a production-line status enum. */
 export function getProductionLineStatusDisplayName(
   status: ProductionLineStatus,
 ): string {
   return ProductionLineStatusDisplayNames[status];
 }
 
+/** Converts a known production-line status label back to its enum value. */
 export function parseProductionLineStatusDisplayName(
   displayName: string,
 ): ProductionLineStatus {

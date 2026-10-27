@@ -5,16 +5,19 @@ namespace ProductionLineSim.Services
 {
     public class DowntimeCalculator
     {
+        /// <summary>Calculates clipped event durations and reason totals within a UTC reporting range.</summary>
         public static DowntimeReport Calculate(string lineId, DateTimeOffset fromUtc, DateTimeOffset toUtc, IEnumerable<DowntimeEvent> sourceEvents, DateTimeOffset nowUtc)
         {
             var from = fromUtc.ToUniversalTime();
             var to = toUtc.ToUniversalTime();
             if (from >= to) throw new ArgumentException("The reporting range must have from earlier than to.");
 
+            // Use half-open overlap checks so events touching a range boundary are excluded.
             var events = sourceEvents
                 .Where(item => item.StartedAtUtc < to && (item.EndedAtUtc is null || item.EndedAtUtc > from))
                 .Select(item =>
                 {
+                    // Bound open-ended events by both the report end and the current time.
                     var effectiveEnd = item.EndedAtUtc ?? (to < nowUtc ? to : nowUtc);
                     var overlapStart = item.StartedAtUtc > from ? item.StartedAtUtc : from;
                     var overlapEnd = effectiveEnd < to ? effectiveEnd : to;

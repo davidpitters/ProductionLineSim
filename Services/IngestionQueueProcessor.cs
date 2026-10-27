@@ -4,6 +4,7 @@
     {
         private readonly int _maxAttempts = Math.Max(1, configuration.GetValue("Ingestion:MaxAttempts", 3));
         private readonly TimeSpan _pollInterval = TimeSpan.FromMilliseconds(Math.Clamp(configuration.GetValue("Ingestion:PollIntervalMilliseconds", 1000), 100, 10000));
+        /// <summary>Polls the queue, delaying when idle and continuing after recoverable processing errors.</summary>
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             while (!stoppingToken.IsCancellationRequested)

@@ -12,6 +12,8 @@ namespace ProductionLineSim.Services
     public class SqliteStore(string connectionString, ILogger<SqliteStore> logger)
     {
         private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
+
+        /// <summary>Opens a SQLite connection with foreign-key checks and a busy timeout enabled.</summary>
         public SqliteConnection OpenConnection()
         {
             var connection = new SqliteConnection(connectionString);
@@ -78,9 +80,11 @@ namespace ProductionLineSim.Services
             """;
             await command.ExecuteNonQueryAsync(cancellationToken);
             await MigrateDowntimeReasonsAsync(connection, cancellationToken);
+            // Reconcile seeded/existing lines and recover interrupted queue work during startup.
             await SeedAsync(connection, cancellationToken);
         }
 
+        /// <summary>Upgrades legacy status-based downtime reasons to descriptive causes once.</summary>
         private static async Task MigrateDowntimeReasonsAsync(
             SqliteConnection connection,
             CancellationToken cancellationToken)
@@ -127,6 +131,7 @@ namespace ProductionLineSim.Services
             await transaction.CommitAsync(cancellationToken);
         }
 
+        /// <summary>Inserts sample lines and events, then reconciles line statuses with event history.</summary>
         private static async Task SeedAsync(SqliteConnection connection,CancellationToken cancellationToken)
         {
             var now = DateTimeOffset.UtcNow;
@@ -336,6 +341,7 @@ namespace ProductionLineSim.Services
             await transaction.CommitAsync(cancellationToken);
         }
 
+        /// <summary>Sets each line's status from its latest event, or Running when that event is closed.</summary>
         private static async Task ReconcileLineStatusesAsync(
             SqliteConnection connection,
             SqliteTransaction transaction,
@@ -375,6 +381,7 @@ namespace ProductionLineSim.Services
             }
         }
 
+        /// <summary>Upserts a deterministic sample event so repeated initialization remains stable.</summary>
         private static async Task InsertSeedEventAsync(
             SqliteConnection connection,
             SqliteTransaction transaction,
@@ -410,6 +417,7 @@ namespace ProductionLineSim.Services
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
 
+        /// <summary>Counts persisted events for one line inside the active seed transaction.</summary>
         private static async Task<int> GetEventCountAsync(
             SqliteConnection connection,
             SqliteTransaction transaction,
@@ -593,6 +601,7 @@ namespace ProductionLineSim.Services
             return CreateLogPage(messages, limit, offset);
         }
 
+        /// <summary>Builds a page and uses one extra fetched row to determine whether more results exist.</summary>
         private static LogPage<T> CreateLogPage<T>(List<T> entries, int limit, int offset)
         {
             var hasMore = entries.Count > limit;
@@ -600,6 +609,7 @@ namespace ProductionLineSim.Services
             return new LogPage<T> { Items = entries, Limit = limit, Offset = offset, HasMore = hasMore };
         }
 
+        /// <summary>Persists a normalized request or identifies an exact replay versus a conflicting reuse.</summary>
         public async Task<Tuple<MachineEventResponse?, bool>> EnqueueAsync(MachineEventRequest request, string? failureMode, CancellationToken cancellationToken)
         {
             var normalized = new MachineEventRequest
@@ -630,6 +640,7 @@ namespace ProductionLineSim.Services
             }
             catch (SqliteException exception) when (exception.SqliteErrorCode == 19)
             {
+                // A source ID is idempotent only when the normalized payload matches its first submission.
                 var prior = await FindBySourceEventIdAsync(normalized.SourceEventId, cancellationToken);
                 if (prior is null) throw;
                 if (!CryptographicOperations.FixedTimeEquals(Convert.FromHexString(prior.Value.Hash), Convert.FromHexString(hash)))
@@ -658,6 +669,7 @@ namespace ProductionLineSim.Services
         }
 
         /// <summary>Finds an existing queue message by its source event identifier.</summary>
+        /// <summary>Looks up the original message ID, payload hash, and state for a source event ID.</summary>
         private async Task<(Guid Id, string Hash, string Status)?> FindBySourceEventIdAsync(string sourceEventId, CancellationToken cancellationToken)
         {
             await using var connection = OpenConnection();
@@ -783,6 +795,7 @@ namespace ProductionLineSim.Services
             await using var finalConnection = OpenConnection();
             await using var finalTransaction = finalConnection.BeginTransaction();
             var processedAt = DateTimeOffset.UtcNow;
+            // Close earlier open events on this line before inserting the new event in the same transaction.
             await using (var closeOngoing = finalConnection.CreateCommand())
             {
                 closeOngoing.Transaction = finalTransaction;

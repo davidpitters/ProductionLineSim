@@ -15,14 +15,17 @@ import {
   type ProductionLine,
 } from './interfaces/interfaces'
 
+/** Formats a Date for a datetime-local input using the user's local timezone. */
 const localDateTime = (date: Date) => {
   const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
   return local.toISOString().slice(0, 16)
 }
 
+/** Creates a unique source ID for an event submitted by this simulator. */
 const createSourceEventId = () =>
   `sim-${typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`}`
 
+/** Waits for polling and rejects promptly when the associated request is cancelled. */
 const wait = (milliseconds: number, signal: AbortSignal) => new Promise<void>((resolve, reject) => {
   const timer = window.setTimeout(resolve, milliseconds)
   signal.addEventListener('abort', () => {
@@ -31,6 +34,7 @@ const wait = (milliseconds: number, signal: AbortSignal) => new Promise<void>((r
   }, { once: true })
 })
 
+/** Displays an optional API timestamp in the user's locale. */
 const formatTime = (value: string | null) => value ? new Date(value).toLocaleString() : '—'
 
 type DemoFailureMode = 'none' | 'transient' | 'permanent'
@@ -48,13 +52,16 @@ interface DemoActivity {
   error: string | null
 }
 
+/** Selects demo outcomes using the success/transient/permanent percentages shown in the UI. */
 const chooseDemoOutcome = (): DemoFailureMode => {
   const value = Math.random()
   return value < 0.6 ? 'none' : value < 0.8 ? 'transient' : 'permanent'
 }
 
+/** Returns a random item from a non-empty collection. */
 const pickRandom = <T,>(items: readonly T[]): T => items[Math.floor(Math.random() * items.length)]
 
+/** Provides event submission, queue lifecycle tracking, and the optional randomized demo stream. */
 export function Ingestion() {
   const [lines, setLines] = useState<ProductionLine[]>([])
   const [reasons, setReasons] = useState<IngestionReason[]>([])
@@ -81,6 +88,7 @@ export function Ingestion() {
 
   useEffect(() => {
     const controller = new AbortController()
+    /** Loads the form choices and queue summary together for a consistent initial view. */
     async function load() {
       try {
         setError(null)
@@ -109,6 +117,7 @@ export function Ingestion() {
   useEffect(() => () => abortRef.current?.abort(), [])
 
   useEffect(() => {
+    // Keep demo rows current without polling a message more than once at a time.
     const timer = window.setInterval(() => {
       for (const messageId of demoTrackedMessageIdsRef.current) {
         if (pollingMessageIdsRef.current.has(messageId)) continue
@@ -139,6 +148,7 @@ export function Ingestion() {
     let cancelled = false
     let timer: number | undefined
 
+    /** Submits one randomized demo event and tracks its queue message. */
     const submitDemoEvent = async () => {
       const line = pickRandom(lines)
       const selectedReason = pickRandom(reasons)
@@ -177,7 +187,9 @@ export function Ingestion() {
       }
     }
 
+    /** Schedules the next demo submission only after the current one completes. */
     const scheduleNext = () => {
+      // Schedule after each submission completes to prevent overlapping demo events.
       timer = window.setTimeout(async () => {
         if (cancelled) return
         await submitDemoEvent()
@@ -192,6 +204,7 @@ export function Ingestion() {
     }
   }, [demoInterval, demoRunning, lines, reasons])
 
+  /** Submits the form and polls until the background worker reaches a terminal state. */
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     abortRef.current?.abort()
@@ -217,6 +230,7 @@ export function Ingestion() {
       const accepted = await submitMachineEvent(request, failureMode, controller.signal)
       setLifecycle('accepted')
       let latest: IngestionMessage | null = null
+      // Poll briefly for the background worker to finish; cancellation stops both fetches and delays.
       for (let attempt = 0; attempt < 90; attempt += 1) {
         latest = await fetchIngestionMessage(accepted.messageId, controller.signal)
         setMessage(latest)
@@ -242,6 +256,7 @@ export function Ingestion() {
     }
   }
 
+  /** Re-sends the exact last payload to demonstrate source-ID idempotency. */
   async function replayLastRequest() {
     if (!lastSubmittedRequest || isReplaying) return
     setIsReplaying(true)
@@ -271,6 +286,7 @@ export function Ingestion() {
     }
   }
 
+  /** Refreshes either the current message state or the initial ingestion data. */
   async function refreshMessage() {
     if (!message) {
       setRefreshToken((value) => value + 1)

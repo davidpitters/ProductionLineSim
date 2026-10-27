@@ -10,6 +10,7 @@ namespace ProductionLineSim.Controllers
     {
         private static readonly string[] ValidReasons = DowntimeReasonCatalog.AcceptedReasons.ToArray();
 
+        /// <summary>Returns queue counts and recent ingestion activity.</summary>
         [HttpGet]
         [Route("health")]
         public async Task<ActionResult<IngestionHealth>> GetHealthAsync(CancellationToken cancellationToken)
@@ -17,6 +18,7 @@ namespace ProductionLineSim.Controllers
             return Ok(await store.GetHealthAsync(cancellationToken));
         }
 
+        /// <summary>Returns supported event causes and their line-status impacts.</summary>
         [HttpGet]
         [Route("reasons")]
         public IActionResult GetReasons()
@@ -28,26 +30,26 @@ namespace ProductionLineSim.Controllers
             }));
         }
 
+        /// <summary>Returns the status and details of one ingestion message.</summary>
         [HttpGet]
         [Route("messages/{messageId:guid}")]
-        /// <summary>Returns the status and details of one ingestion message.</summary>
         public async Task<ActionResult<IngestionMessage>> GetMessageAsync(Guid messageId, CancellationToken cancellationToken)
         {
             var message = await store.GetMessageAsync(messageId, cancellationToken);
             return message is null ? NotFound() : Ok(message);
         }
 
+        /// <summary>Returns ingestion messages in the requested supported queue state.</summary>
         [HttpGet]
         [Route("messages/status/{status}")]
-        /// <summary>Returns ingestion messages in the requested supported queue state.</summary>
         public async Task<ActionResult<List<IngestionMessage>>> GetMessagesByStatusAsync(string status, CancellationToken cancellationToken)
         {
             return Ok(await store.GetMessagesByStatusAsync(status, cancellationToken));
         }
 
+        /// <summary>Validates a machine event and durably queues it, returning duplicate or conflict outcomes when applicable.</summary>
         [HttpPost]
         [Route("submit")]
-        /// <summary>Validates a machine event and durably queues it, returning duplicate or conflict outcomes when applicable.</summary>
         public async Task<IActionResult> SubmitEvent([FromBody] MachineEventRequest request, [FromQuery] string? failureMode, CancellationToken cancellationToken)
         {
             // Validate the request data

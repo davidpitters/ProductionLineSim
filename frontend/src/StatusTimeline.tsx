@@ -8,6 +8,7 @@ interface Segment {
   status: string
 }
 
+/** Parses a local YYYY-MM-DDTHH:mm value without accepting normalized invalid dates. */
 function parseLocalDateTime(value: string): number | null {
   const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value)
   if (!match) return null
@@ -21,6 +22,7 @@ function parseLocalDateTime(value: string): number | null {
   return date.getTime()
 }
 
+/** Formats a timeline tick, adding a date label for ranges longer than one day. */
 function formatAxisTick(timestamp: number, showDate: boolean): string {
   return new Date(timestamp).toLocaleString([], {
     ...(showDate ? { month: 'short', day: 'numeric' } : {}),
@@ -30,17 +32,20 @@ function formatAxisTick(timestamp: number, showDate: boolean): string {
   })
 }
 
+/** Builds ordered status intervals, filling gaps as Running and clipping to now. */
 function getSegments(
   events: DowntimeEvent[],
   rangeStart: number,
   rangeEnd: number,
   now: number,
 ): Segment[] {
+  // The selected range can extend past now; only render the elapsed portion.
   const visibleEnd = Math.min(rangeEnd, now)
   const segments: Segment[] = []
   let cursor = rangeStart
 
   const sortedEvents = [...events]
+    // Clip events to the visible window before filling gaps and ordering segments.
     .map((event) => ({
       event,
       start: Math.max(Date.parse(event.StartedAtUtc), rangeStart),
@@ -73,6 +78,7 @@ function getSegments(
   return segments
 }
 
+/** Maps a line status label to its timeline segment CSS class. */
 function statusClass(status: string): string {
   switch (status.toLowerCase()) {
     case getProductionLineStatusDisplayName(Interfaces.ProductionLineStatus.Running).toLocaleLowerCase():
@@ -88,6 +94,7 @@ function statusClass(status: string): string {
   }
 }
 
+/** Renders validated time controls and per-line status intervals for the selected range. */
 export function StatusTimeline(
     { lines, eventsByLine, highlightedLineId, from, to, nowLocal, nowMs, maxFromLocal, onFromChange, onToChange }: {
       lines: Interfaces.ProductionLine[]
@@ -105,6 +112,7 @@ export function StatusTimeline(
   const [now, setNow] = useState(Date.now())
 
   useEffect(() => {
+    // Refresh the visible end of ongoing timeline segments without reloading event history.
     const timer = window.setInterval(() => setNow(Date.now()), 60_000)
     return () => window.clearInterval(timer)
   }, []);
@@ -115,6 +123,7 @@ export function StatusTimeline(
   const maxFromTime = parseLocalDateTime(maxFromLocal) ?? currentTime - 60_000
   const isFutureTo = rangeEnd !== null && rangeEnd > currentTime
   const isFromTooRecent = rangeStart !== null && rangeStart > maxFromTime
+  // Keep the start at least one minute behind now so the timeline has a stable past interval.
   const validRange = rangeStart !== null && rangeEnd !== null && rangeStart <= maxFromTime &&
     rangeStart < rangeEnd && rangeEnd <= currentTime
   const safeRangeStart = rangeStart ?? 0

@@ -12,6 +12,7 @@ namespace ProductionLineSim.Controllers
         private const int DefaultLimit = 50;
         private const int MaximumLimit = 100;
 
+        /// <summary>Returns a bounded page of machine events and duplicate recognitions.</summary>
         [HttpGet("events")]
         public Task<LogPage<MachineEventLogEntry>> GetMachineEventsAsync(
             [FromQuery] int limit = DefaultLimit,
@@ -21,6 +22,7 @@ namespace ProductionLineSim.Controllers
             return store.GetMachineEventLogsAsync(Math.Clamp(limit, 1, MaximumLimit), Math.Max(0, offset), cancellationToken);
         }
 
+        /// <summary>Returns a bounded page of ingestion queue messages.</summary>
         [HttpGet("ingestion-messages")]
         public Task<LogPage<IngestionLogEntry>> GetIngestionMessagesAsync(
             [FromQuery] int limit = DefaultLimit,
@@ -30,6 +32,7 @@ namespace ProductionLineSim.Controllers
             return store.GetIngestionLogsAsync(Math.Clamp(limit, 1, MaximumLimit), Math.Max(0, offset), false, cancellationToken);
         }
 
+        /// <summary>Returns a bounded page of failed ingestion messages.</summary>
         [HttpGet("failures")]
         public Task<LogPage<IngestionLogEntry>> GetFailuresAsync(
             [FromQuery] int limit = DefaultLimit,
