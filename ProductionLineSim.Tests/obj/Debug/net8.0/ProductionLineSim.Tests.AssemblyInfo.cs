@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ProductionLineSim.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+25a9270036685b3e317fcd8c8b72a6bd05a4c5e4")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+26a9dd82764af3b8204d78583f27f0f8c0c9c0ca")]
 [assembly: System.Reflection.AssemblyProductAttribute("ProductionLineSim.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ProductionLineSim.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
