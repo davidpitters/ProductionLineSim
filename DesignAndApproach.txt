@@ -1,4 +1,4 @@
-Before beginning any development, the very first thing that I did was structure my approach to the project. I devised a schedule to adhere to, based on how many days I had until my on site interview. I had from Tuesday until Tuesday, so I dedicated 3 days to development, with a code freeze after Sunday. Monday was designated to testing core functionality and edge cases, and bug fixes, as well as dedicated to reviewing and brainstorming future capabilities outside of the scope of this project.
+Before beginning any development, the very first thing that I did was structure my approach to the project. I devised a schedule to adhere to, based on how many days I had until this interview. I dedicated 3 days to development, with a code freeze after Sunday. Monday was designated to testing core functionality and edge cases, and bug fixes, as well as dedicated to reviewing and brainstorming future capabilities outside of the scope of this project.
 
 After coming up with my schedule, I re-read over the supplied take home project documentation. From this I gathered key functional requirements and drafted the architecture that I wanted. I composed it of 5 parts:
 Events - Simulated events that mimic the data that is being trasmitted from the machines on the production line.
@@ -12,12 +12,12 @@ Processed Downtime Events - Validated records, queryable history
 Dashboard - displays Production status, Downtime reports, and Ingestion health
 With this, I prompted GPT-6 in ChatGPT to draft a design specification document that would give a high level blueprint on how the system will be built to fulfill its functional requirements. 
 
-Next, it was time to begin development. I began by instructing GPT-6 Luna in VSCode to scaffold the application according to my desired design. The design I went with was an ASP.NET Core Web API, with a React Typescript frontend. I used Vite for local web server development. I also opted for a SQLite database for persistent storage of queued messages in case of application shutdown.  I chose GPT-6 Luna on Medium because it has very low credit consumption and has the capabilities needed to perform for a small project like this as there was no existing codebase that it would need to understand for context.
+Next, it was time to begin development. I began by instructing GPT-6 Luna in VSCode to scaffold the application according to my desired design. The design I went with was an ASP.NET Core Web API, with a React Typescript frontend. I used Vite for local web server development. I also opted for a SQLite database for persistent storage of queued messages.  I chose GPT-6 Luna on Medium because it has very low credit consumption and has the capabilities needed to perform for a small project like this as there was no existing codebase that it would need to understand for context.
 
 Once I had the skeleton of the project created, I made some adjustments to fit the folder structure that I wanted. I added a folder for Classes and a folder for Services.
 
-The first things I wanted to create were my classes. I believe that by having fully realized classes with their respective properties is a great starting point because the entire application revolves around these models.
-I put the agent into Plan mode and supplied it with my design specification and asked it what thought my classes should be, based on the functional requirements. It returned a list of classes and I reviewed them to ensure that they were in line with what was needed. I removed unnecessary properties and simplified them.
+The first things I wanted to create were my classes. The reason that I started here is because with a brand new project, I believe that by having fully realized classes with their respective properties is a great starting point because the entire application revolves around these models.
+I put the agent into Plan mode and supplied it with my design specification and instructed it to give me logical classes, based on the functional requirements. It returned a list of classes and I reviewed them to ensure that they were in line with what was needed. I removed unnecessary properties and simplified them.
 
 Next, I set up my API. According to my 5 subsystem design, I knew that I would need an API for the Production Line, and another for the Ingestion.
 - The ProductionLine API serves the purpose of performing
@@ -29,30 +29,37 @@ Next, I set up my API. According to my 5 subsystem design, I knew that I would n
         - To read the health of the ingestion queue (counts of each message status)
         - To read an individual message by id 
         - To read a list of messages by status
+    - POST operations
+        - To submit a new machine event request to the message queue
+- The Logs API serves the purpose of performing
+    - GET operations
+        - To read logs for machine events, ingestion messages, and permanent failures
+
+Next, I set up my services. The services are comprised of an background service that queues ingestion messages, as well as the Sqlite logic. The background service polls the SQLite store every second and process 1 pending message at a time. The 2 actions of adding the event to the DowntimeEvents table and updating the ingestion message status to Processed is atomic via a transaction. This ensures that both commit together or neither do, in the case of a system crash. Upon system restart, any ingestion messages that are in the Processing status are reset to Pending so they can be retried. 
 
 
-Next, I set up my services. The services are comprised of an background service that queues ingestion messages. It polls the SQLite store every second and process pending messages. The 2 actions of adding the event to the DowntimeEvents table and updating the ingestion message status to Processed is atomic via a transaction. This ensures that both commit together or neither do, in the case of a system crash. Upon system restart, any ingestion messages that are in the Processing status are reset to Pending so they can be retried. 
-
-
-Next, I set up my front end. To expedite the process of class creation I provided GPT-6 Luna with my Models and instructed it to give me Typescript equivalents. I wanted 4 screens that are navigated by a sidebar:
+Next, I set up my front end. To expedite the process of class creation I provided GPT-6 Luna with my Models and instructed it to give me Typescript equivalents. I wanted 5 main screens that are navigated by a sidebar:
 - Lines
+- Ingestion (demo)
+- Logs
 - Performance (future)
 - Targets (future)
 I incrementally pieced the front end together, going back and forth between writing my react components and styling them with css.
-I first created the app container in the App.tsx file, which holds the sidebar and the main content. In the sidebar are 4 buttons that act as tab toggles to change the main content screen. The main content has a condition check for the selected tab and shows the correct page based on that. For the scope of this project, I implemented the first screen which has the Line Status Overview and Line Detail screens. 
+I first created the app container in the App.tsx file, which holds the sidebar and the main content. In the sidebar are 5 buttons that act as tab toggles to change the main content screen. The main content has a condition check for the selected tab and shows the correct page based on that. For the scope of this project, I implemented the first 3 screens which has the Line Status Overview/Line Detail screens, Ingestion (for demoing), and Logs
 When writing the css for the layout, I set the background color for each so that I could see their position on the page, their height/width as well as their respective content positioning. 
 For the screens, I took inspiration from my research on ZPI's Monitor and Report software that I found on the company website. I used it as a baseline but put my own spin on it, such as clicking on a Production Line to open the corresponding line in the Line Detail screen or being able to scroll through and search for a Production Line, for example. 
-I drew up a mock UI in paint for the Line detail screen, based on the information given in the project handoff document. I supplied the mock UI image as well as the following prompt for GPT-6 Luna to expedite the creation of the xml.
+I drew up a mock UI in paint for the Line detail screen, based on the information given in the project handoff document. I supplied the mock UI image as well as the following prompt for GPT-6 Luna to expedite the creation of the UI.
 "When a line is selected, the right content that has the status timeline should instead show the LineDetail. This screen shows the line name at the top and a date range selector with from and to dates. Under that is the Total Downtime and Event count for that period. Under that is a grid. The grid has columns for Event, Start Time, Duration, and Reason. The grid is sorted descending by start time, with the most recent event at the top. The Event column cells are color coordinated to match the status styles in the css file"
-I continued to add in functionality to the front end without committing too much time to it. I went for a clean and easy to understand UI, with features that make sense such as a search bar and filters.
-To test my front end, I supplied it with mock data based on my classes. I used GPT-6 Luna to generate the mock data.
+I continued to add in functionality to the frontend without committing too much time to it. I went for a clean and easy to understand UI, with features that make sense such as a search bar and filters.
+To test my front end as I was developing, I supplied it with mock data based on my classes. I used GPT-6 Luna to generate the mock data.
+One thing that I like to do when approaching a big project is work from both ends and then bridge the gap at the end. I'll develop the backend API and services first, get that talking with the DB, and then the isolate the front end (and test it with mock data), and then I will connect the front end to back end and retest using integration testing. I find that this approach allows me to break the major components into manageable chunks that I can reliably develop without worrying about distracting issues (CORS, DTO mismatches, Authorization or Authentication denial) that come up when you connect the front and back end. I still integration test these things after I connect them together, but for development I find it more optimal to get each piece working first.
 
-Once I had the front end completed, I hooked in the API to the frontend. Since I was running up on time I used GPT-6 Luna to rapidly setup the interfacing between my front end and API. 
+Once I had the front end completed, I hooked in the API to the frontend. I used GPT-6 Luna to rapidly setup the interfacing between my front end and API. 
 
 To demonstrate the ingestion queue subsystem, I instructed Luna with this instruction:
 "I need to integrate the Ingestion API to the front end. I need a UI to simulate a new machine event request for a line spawning, it getting validated and accepted by the ingestion controller, and then processed by the queue processor, and then being able to see it on the dashboard. Add another screen ( After Lines and before Performance ) called Ingestion to display this. I should be able to trigger the event spawning by a button. Match the existing ui styles"
 After, I also wanted a way to simulate multiple machine event requests being submitted.
-"On the ingestion screen, add a "running ingestion" demo that i can start/stop that randomly picks a line and new machine event request to submit every given interval (options of 1 sec, 5 sec, 10 seconds). It also picks randomly if it should be a success, transient, or permanent failure"
+"On the ingestion screen, add a "running ingestion" demo that i can start/stop that randomly picks a line and new machine event request to submit every given interval (options of 1 sec, 5 sec, 10 seconds). It also picks randomly if it should be a success, transient failure (retry), or permanent failure"
 I also wanted Logs to show, indicating Machine events, Ingestion Messages, and Permanent Failures. Idempotency checks are also logged to give the user knowledge of repeated events with the same payload. 
 In my testing, I noticed that ongoing events should have their end time set once a new machine request has been processed, so I added that in as well.
 
