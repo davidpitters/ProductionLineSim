@@ -11,6 +11,10 @@
     <Content Remove="Classes\Entities\**" />
     <EmbeddedResource Remove="Classes\Entities\**" />
     <None Remove="Classes\Entities\**" />
+    <Compile Remove="ProductionLineSim.Tests\**" />
+    <Content Remove="ProductionLineSim.Tests\**" />
+    <EmbeddedResource Remove="ProductionLineSim.Tests\**" />
+    <None Remove="ProductionLineSim.Tests\**" />
   </ItemGroup>
 
   <ItemGroup>

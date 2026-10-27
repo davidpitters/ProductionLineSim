@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="./ProductionLineSim.csproj" />
+  <Project Path="./ProductionLineSim.Tests/ProductionLineSim.Tests.csproj" />
 </Solution>
