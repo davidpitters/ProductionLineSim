@@ -89,7 +89,9 @@ How I would expand on this project in the future would be to do the following:
 - OEE is a very important benchmark that needs to be reflected in the application.
 - Expand the test suite using xUnit to perform additional unit and integration tests.
 
-The greatest challenge for me was to be able to properly understand what classes to create. Taking the functional requirements and translating them into the classes and data transfer objects that fulfill the requirements while not being overengineered.
+One challenge for me was to be able to properly understand what classes to create. Taking the functional requirements and translating them into the classes and data transfer objects that fulfill the requirements while not being overengineered.
+
+The greatest challenge however was making an at-least-once delivery queue behave idempotently without lying about the guarantees. I had to be explicit that this is at-least-once delivery with idempotent effects, not true exactly-once processing, and prove that with tests for duplicate replay, conflicting reuse, and crash recovery of in-flight messages rather than just asserting it in docs. I achieved this by using a durable accept-before-ack for the EnqueueAsync function that inserts the message into IngestionMessages table before returning a response, using atomic claiming with transactions when the worker claims a message, and restart recovery; setting messages with a status of 'Processing' back to 'Pending' on startup. At least once delivery + idempotent processing gets the same observable outcome as exactly-once, more like effectively-once.
 
 I used AI to boilerplate the projects and help me come up with properties that I would need for my classes, but when it came to development I chose to build the application from the ground up. The reason for this is that I have used AI to generate the "v1" of some apps in my own personal projects before, and it always comes with major drawbacks such as file bloat and unreadable code. I find that creating my classes, services, api controllers, and front end components myself keep the file count minimal and I am able to steer the code towards not just how I want it to work, but how I would like it to look and read as well. This ensures that in the future, anyone looking at the code will be able to quickly understand what its purpose is and where to make any desired changes. I think of it like cooking a meal versus ordering the same meal from Uber Eats. It can be the same exact thing in front of you, but when you do it yourself you know the ins and outs of it.
 
@@ -98,6 +100,11 @@ Decisions and Trade offs
 Idempotency / conflict handling
 ---
 Used SourceEventId + a hash of the normalized payload as the idempotency key.
+I hash the normalized payload so idempotency comparison is a cheap, fixed-size, canonical check rather than a fragile raw JSON comparison. Normalization happens first so logically identical events always hash the same, and the hash just gives me an efficient way to tell replay from conflict.
+Trade-offs: 
+ - SHA-256 is heavier than this use case needs, but its built into .NET with no extra dependencies.
+ - Relying on System.Text.JSON to serialize. If the DTO's property order or JSonSerializerOptions ever change, the previously computed hashes for stored messages would no longer match newly computed hashes for logically identical resubmissions.
+
 Relied on a DB unique constraint and caught the constraint violation, instead of check-then-insert; this avoids a race between concurrent duplicate submissions.
 Same ID + same payload = replay, return 200 and log it. Same ID + different payload = conflict, 409. Only exact-ID collisions are covered; no semantic deduplicating across different IDs. An example would be two different machines assigning two different SourceEventIds to what was physically the same downtime event. Or a near duplicate event where the lind id, reason, and time windows are the same but the Ids are different. I took this trade off because accounting for this would require comparing the content of the events across different IDs which is more in depth than the scope of this project and also risks false positives.
 
